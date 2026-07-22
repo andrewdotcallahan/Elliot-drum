@@ -147,15 +147,22 @@ def measure_pitch(x, fmin=60.0, fmax=500.0):
 
 def kick():
     """Punchy, not boomy: fast 150->46 Hz sweep, tight decay, soft knock
-    transient (filtered, not raw white noise), sub rumble high-passed."""
+    transient (filtered, not raw white noise), sub rumble high-passed.
+
+    Phone speakers can't reproduce the 46 Hz fundamental, so quieter
+    2nd/3rd-harmonic sweeps ride along in the 100-450 Hz range the
+    speaker CAN play — the ear reconstructs the missing fundamental
+    (residue pitch), so the kick still reads as a deep thump."""
     dur = 0.38
     t = t_axis(dur)
     body = pitch_sweep(150.0, 46.0, dur, 9.5)
+    h2 = pitch_sweep(300.0, 92.0, dur, 11.0)
+    h3 = pitch_sweep(450.0, 138.0, dur, 12.5)
     n_k = int(SR * 0.006)
     knock = np.zeros_like(body)
-    knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(150, 1200, 2)) \
+    knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(200, 1800, 2)) \
         * np.linspace(1.0, 0.0, n_k)
-    x = body + 0.5 * knock
+    x = body + 0.40 * h2 + 0.22 * h3 + 0.6 * knock
     return shape_spectrum(x, hp_curve(34, 2))
 
 
@@ -164,11 +171,12 @@ def tom_hi():
     short 0.3 s decay, warm band-passed knock on the attack."""
     dur = 0.30
     body = pitch_sweep(200.0, 105.0, dur, 11.0)
+    h2 = pitch_sweep(400.0, 210.0, dur, 13.0)   # phone-speaker presence
     n_k = int(SR * 0.004)
     knock = np.zeros_like(body)
     knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(300, 2000, 2)) \
         * np.linspace(1.0, 0.0, n_k)
-    return body + 0.3 * knock
+    return body + 0.25 * h2 + 0.3 * knock
 
 
 def tom_floor():
@@ -177,11 +185,13 @@ def tom_floor():
     boom stays controlled on small speakers."""
     dur = 0.45
     body = pitch_sweep(130.0, 65.0, dur, 7.5)
+    h2 = pitch_sweep(260.0, 130.0, dur, 8.5)    # phone-speaker presence
+    h3 = pitch_sweep(390.0, 195.0, dur, 9.5)
     n_k = int(SR * 0.005)
     knock = np.zeros_like(body)
-    knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(200, 1200, 2)) \
+    knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(200, 1500, 2)) \
         * np.linspace(1.0, 0.0, n_k)
-    x = body + 0.22 * knock
+    x = body + 0.35 * h2 + 0.18 * h3 + 0.3 * knock
     return shape_spectrum(x, hp_curve(40, 2))
 
 
@@ -327,6 +337,25 @@ def pluck(freq, duration=2.0):
     return x
 
 
+def small_speaker_exciter(x, amount):
+    """Psychoacoustic bass for phone speakers: soft-saturate the signal to
+    generate upper harmonics of the (inaudible-on-phone) low fundamental,
+    keep only the 300 Hz - 3 kHz band, and mix it back in. Harmonics stay
+    exactly harmonic, so the pitch is unchanged — the ear reconstructs the
+    fundamental from the series. amount=0 is a no-op."""
+    if amount <= 0:
+        return x
+    peak = max(np.max(np.abs(x)), 1e-9)
+    harm = np.tanh(4.0 * x / peak)
+    harm = shape_spectrum(harm, bp_curve(300, 3000, 2))
+    harm *= peak / max(np.max(np.abs(harm)), 1e-9)
+    y = x + amount * harm
+    # Energy-preserving: trade (phone-inaudible) fundamental level for the
+    # audible harmonics instead of just getting louder, so the balance
+    # across strings survives the later group scaling.
+    return y * np.sqrt(np.mean(x ** 2) / max(np.mean(y ** 2), 1e-12))
+
+
 # --------------------------------------------------------------------------
 # Xylophone (toy 8-bar C major, C5..C6)
 # --------------------------------------------------------------------------
@@ -383,14 +412,17 @@ STALE_FILES = [
 ]
 
 
-def balance_and_scale_guitar(plucks):
-    """Equal RMS over the first 300 ms across strings, then scale the whole
-    set so a six-string strum (30 ms stagger) peaks at PEAK_DBFS."""
+def balance_guitar(plucks):
+    """Equal RMS over the first 300 ms across strings."""
     n300 = int(SR * 0.300)
     rms = {k: np.sqrt(np.mean(v[:n300] ** 2)) for k, v in plucks.items()}
     target = float(np.mean(list(rms.values())))
-    plucks = {k: v * (target / rms[k]) for k, v in plucks.items()}
+    return {k: v * (target / rms[k]) for k, v in plucks.items()}
 
+
+def scale_guitar_for_strum(plucks):
+    """Scale the whole set so a six-string strum (30 ms stagger) peaks at
+    PEAK_DBFS."""
     stag = int(SR * STRUM_STAGGER)
     names = sorted(plucks)
     length = stag * (len(names) - 1) + max(len(v) for v in plucks.values())
@@ -427,7 +459,15 @@ def main():
         f0 = measure_pitch(plucks[name])
         print(f"  {name}: tuned to {f0:.3f} Hz (target {freq:.2f}, "
               f"{(f0 / freq - 1) * 100:+.3f}%)")
-    plucks = balance_and_scale_guitar(plucks)
+    plucks = balance_guitar(plucks)
+    # Exciter AFTER RMS balancing (so the balancer doesn't reabsorb the
+    # added harmonics) and before the strum-peak scaling (so a full strum
+    # still can't clip). More exciter the lower the string: G2 gets a
+    # strong lift, D4 barely any.
+    for name, freq in GUITAR_STRINGS.items():
+        amount = 0.9 * min(1.0, max(0.0, (300.0 - freq) / 200.0))
+        plucks[name] = small_speaker_exciter(plucks[name], amount)
+    plucks = scale_guitar_for_strum(plucks)
     for name, x in plucks.items():
         write_wav(name, x, do_normalize=False)
 
