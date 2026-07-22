@@ -132,10 +132,54 @@ TEMPLATE = r"""
   /* ---------- guitar ---------- */
   #guitar canvas { position: absolute; inset: 0; }
 
-  /* ---------- parent gate + switcher ---------- */
-  .gate-zone { position: absolute; top: 0; width: 90px; height: 90px; z-index: 50; }
-  #gate-left { left: 0; }
-  #gate-right { right: 0; }
+  /* ---------- xylophone ---------- */
+  #xylo {
+    background:
+      radial-gradient(120% 90% at 50% 10%, rgba(255,255,255,0.06), rgba(0,0,0,0) 60%),
+      linear-gradient(180deg, #232c3a 0%, #161c26 100%);
+  }
+  .bar {
+    position: absolute;
+    border-radius: 16px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.45), inset 0 2px 3px rgba(255,255,255,0.35);
+    will-change: transform;
+  }
+  .bar .nail {
+    position: absolute;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #f2f0ea;
+    box-shadow: inset 0 -2px 2px rgba(0,0,0,0.35);
+    transform: translate(-50%, -50%);
+  }
+  .bar .flash {
+    position: absolute; inset: 0; border-radius: inherit;
+    background: #fff; opacity: 0; pointer-events: none;
+  }
+
+  /* ---------- parent gate button + switcher ---------- */
+  #gate-btn {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: 14px;
+    width: 52px; height: 52px;
+    z-index: 60;
+    border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.28);
+    color: rgba(255,255,255,0.55);
+    font-size: 26px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #gate-btn * { pointer-events: none; }
+  #gate-btn svg {
+    position: absolute; inset: -3px;
+    width: 58px; height: 58px;
+    transform: rotate(-90deg);
+  }
+  #gate-ring {
+    fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round;
+    stroke-dasharray: 163.4; stroke-dashoffset: 163.4;
+  }
   #switcher {
     position: absolute; inset: 0; z-index: 100;
     background: rgba(0,0,0,0.65);
@@ -144,7 +188,7 @@ TEMPLATE = r"""
   }
   #switcher.open { display: flex; }
   .sw-panel { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 32px; }
-  .sw-row { display: flex; gap: 24px; }
+  .sw-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
   .sw-btn {
     width: 160px; height: 160px;
     border: none; border-radius: 24px;
@@ -169,15 +213,27 @@ TEMPLATE = r"""
   <canvas id="g-bg"></canvas>
   <canvas id="g-strings"></canvas>
 </div>
+<div id="xylo" class="screen"></div>
 
-<div id="gate-left" class="gate-zone"></div>
-<div id="gate-right" class="gate-zone"></div>
+<button id="gate-btn" aria-label="Hold to switch instrument">
+  <span>♪</span>
+  <svg viewBox="0 0 58 58" aria-hidden="true">
+    <circle id="gate-ring" cx="29" cy="29" r="26"></circle>
+  </svg>
+</button>
 
 <div id="switcher">
   <div class="sw-panel">
     <div class="sw-row">
       <button class="sw-btn" id="pick-drums"><span class="emoji">🥁</span>Drums</button>
       <button class="sw-btn" id="pick-guitar"><span class="emoji">🎸</span>Guitar</button>
+      <button class="sw-btn" id="pick-xylo">
+        <svg class="emoji" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="6"  y="8" width="10" height="48" rx="5" fill="#e04a3f"/>
+          <rect x="20" y="12" width="10" height="40" rx="5" fill="#f4c542"/>
+          <rect x="34" y="16" width="10" height="32" rx="5" fill="#58b368"/>
+          <rect x="48" y="20" width="10" height="24" rx="5" fill="#4287d6"/>
+        </svg>Xylophone</button>
     </div>
     <button class="sw-close" id="sw-close" aria-label="Close">✕</button>
   </div>
@@ -209,19 +265,28 @@ function decodeAll() {
 }
 
 function ensureAudio() {
-  if (!ctx) {
+  if (!ctx || ctx.state === "closed") {
+    if (ctx) for (const k of Object.keys(buffers)) delete buffers[k];
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     decodeAll();
+  } else if (ctx.state !== "running") {
+    // "suspended", or iOS's non-standard "interrupted" after a system
+    // gesture (Notification Center swipe, Siri, a call) steals audio.
+    ctx.resume().catch(() => {});
   }
-  if (ctx.state === "suspended") ctx.resume();
   if (!silentEl) {
     // Looping silent <audio> keeps playback alive through the mute switch.
     silentEl = new Audio(SILENT_WAV);
     silentEl.loop = true;
     silentEl.setAttribute("playsinline", "");
-    silentEl.play().catch(() => { silentEl = null; });
   }
+  if (silentEl.paused) silentEl.play().catch(() => {});
 }
+
+// Any touch anywhere revives audio + wake lock, so a system interruption
+// heals on the next tap instead of leaving the app "dead".
+document.addEventListener("touchstart", () => { ensureAudio(); requestWake(); },
+  { capture: true, passive: true });
 
 function play(name) {
   ensureAudio();
@@ -239,7 +304,10 @@ async function requestWake() {
   try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") requestWake();
+  if (document.visibilityState === "visible") {
+    requestWake();
+    if (ctx) ensureAudio();
+  }
 });
 
 /* ================= drum kit =================
@@ -600,6 +668,11 @@ const guitarTouchEnd = e => {
 };
 guitarEl.addEventListener("touchend", guitarTouchEnd);
 guitarEl.addEventListener("touchcancel", guitarTouchEnd);
+// If a system gesture swallows a touch's end event, clear stale tracking
+// once every finger is off the screen.
+document.addEventListener("touchend", e => {
+  if (e.touches.length === 0) touchPrevY.clear();
+});
 guitarEl.addEventListener("mousedown", e => {
   ensureAudio(); requestWake();
   guitarTouch("mouse", e.clientY, true);
@@ -611,47 +684,177 @@ guitarEl.addEventListener("mousedown", e => {
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
 
+/* ================= xylophone =================
+   Toy 8-bar rainbow xylophone, C5..C6 (xylo_1 low .. xylo_8 high).
+   Landscape: vertical bars in a row, longest (lowest) on the left.
+   Portrait: horizontal bars stacked, longest at the bottom. */
+
+const XYLO_COLORS = ["#e04a3f", "#ef8332", "#f4c542", "#58b368",
+                     "#3aa8a0", "#4287d6", "#6f6bd8", "#b465c7"];
+const xyloEl = document.getElementById("xylo");
+let xyloBars = [];                 // {el, x, y, w, h} in page coords
+const xyloLastBar = new Map();     // touch id -> bar index (glissando)
+const xyloLastHit = XYLO_COLORS.map(() => -1e9);
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = s => Math.max(0, Math.min(255,
+    Math.round(((n >> s) & 255) + 255 * amt)));
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+}
+
+function layoutXylo() {
+  xyloEl.textContent = "";
+  xyloBars = [];
+  const w = innerWidth, h = innerHeight;
+  const landscape = w > h;
+  const n = 8;
+
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1);
+    let bx, by, bw, bh, nail1, nail2;
+    if (landscape) {
+      bw = w * 0.082;
+      const gap = w * 0.026;
+      const total = n * bw + (n - 1) * gap;
+      bh = h * (0.78 - 0.32 * f);
+      bx = (w - total) / 2 + i * (bw + gap);
+      by = (h - bh) / 2;
+      nail1 = [bw / 2, bh * 0.09];
+      nail2 = [bw / 2, bh * 0.91];
+    } else {
+      bh = h * 0.082;
+      const gap = h * 0.024;
+      const total = n * bh + (n - 1) * gap;
+      bw = w * (0.86 - 0.34 * f);
+      by = (h - total) / 2 + (n - 1 - i) * (bh + gap);   // low bar at bottom
+      bx = (w - bw) / 2;
+      nail1 = [bw * 0.09, bh / 2];
+      nail2 = [bw * 0.91, bh / 2];
+    }
+
+    const el = document.createElement("div");
+    el.className = "bar";
+    const c = XYLO_COLORS[i];
+    el.style.cssText =
+      `left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;` +
+      `background:linear-gradient(180deg, ${shade(c, 0.16)} 0%, ${c} 45%, ${shade(c, -0.13)} 100%);`;
+    for (const [nx, ny] of [nail1, nail2]) {
+      const nail = document.createElement("div");
+      nail.className = "nail";
+      nail.style.left = nx + "px";
+      nail.style.top = ny + "px";
+      el.appendChild(nail);
+    }
+    const flash = document.createElement("div");
+    flash.className = "flash";
+    el.appendChild(flash);
+    xyloEl.appendChild(el);
+    xyloBars.push({ el, flash, x: bx, y: by, w: bw, h: bh });
+  }
+}
+
+function hitXylo(x, y) {
+  for (let i = 0; i < xyloBars.length; i++) {
+    const b = xyloBars[i];
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return i;
+  }
+  return -1;
+}
+
+function strikeBar(i) {
+  const now = performance.now();
+  if (now - xyloLastHit[i] < 60) return;
+  xyloLastHit[i] = now;
+  play("xylo_" + (i + 1));
+  if (REDUCED_MOTION) return;
+  const b = xyloBars[i];
+  b.el.animate(
+    [{ transform: "scale(1)" }, { transform: "scale(0.955)", offset: 0.3 },
+     { transform: "scale(1.01)", offset: 0.7 }, { transform: "scale(1)" }],
+    { duration: 240, easing: "ease-out" });
+  b.flash.animate([{ opacity: 0.55 }, { opacity: 0 }],
+    { duration: 280, easing: "ease-out" });
+}
+
+function xyloTouch(id, x, y, isStart) {
+  const i = hitXylo(x, y);
+  if (i >= 0 && (isStart || xyloLastBar.get(id) !== i)) strikeBar(i);
+  xyloLastBar.set(id, i);
+}
+xyloEl.addEventListener("touchstart", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) xyloTouch(t.identifier, t.clientX, t.clientY, true);
+}, { passive: false });
+xyloEl.addEventListener("touchmove", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) xyloTouch(t.identifier, t.clientX, t.clientY, false);
+}, { passive: false });
+const xyloTouchEnd = e => {
+  for (const t of e.changedTouches) xyloLastBar.delete(t.identifier);
+};
+xyloEl.addEventListener("touchend", xyloTouchEnd);
+xyloEl.addEventListener("touchcancel", xyloTouchEnd);
+xyloEl.addEventListener("mousedown", e => {
+  ensureAudio(); requestWake();
+  xyloTouch("mouse", e.clientX, e.clientY, true);
+  const move = ev => xyloTouch("mouse", ev.clientX, ev.clientY, false);
+  const up = () => {
+    xyloLastBar.delete("mouse");
+    removeEventListener("mousemove", move); removeEventListener("mouseup", up);
+  };
+  addEventListener("mousemove", move); addEventListener("mouseup", up);
+});
+
 /* ================= parent gate + switcher ================= */
 
 let current = "drums";
 try { current = localStorage.getItem("babyband.instrument") || "drums"; } catch (e) {}
 
+const LAYOUTS = { drums: layoutDrums, guitar: layoutGuitar, xylo: layoutXylo };
+
 function show(instrument) {
+  if (!LAYOUTS[instrument]) instrument = "drums";
   current = instrument;
   try { localStorage.setItem("babyband.instrument", instrument); } catch (e) {}
-  document.getElementById("drums").classList.toggle("active", instrument === "drums");
-  document.getElementById("guitar").classList.toggle("active", instrument === "guitar");
-  document.getElementById("pick-drums").classList.toggle("current", instrument === "drums");
-  document.getElementById("pick-guitar").classList.toggle("current", instrument === "guitar");
-  if (instrument === "guitar") layoutGuitar();
-  else layoutDrums();
+  for (const name of Object.keys(LAYOUTS)) {
+    document.getElementById(name).classList.toggle("active", name === instrument);
+    document.getElementById("pick-" + name).classList.toggle("current", name === instrument);
+  }
+  LAYOUTS[instrument]();
 }
 
-const gate = { left: false, right: false, timer: null };
-function gateUpdate() {
-  clearTimeout(gate.timer);
-  gate.timer = null;
-  if (gate.left && gate.right) {
-    gate.timer = setTimeout(() => {
-      if (gate.left && gate.right) {
-        gate.left = gate.right = false;
-        openSwitcher();
-      }
-    }, 2000);
-  }
+/* Visible gate: press and hold the ♪ button for 3 s. The progress ring
+   fills while holding; releasing early cancels. A toddler tap does
+   nothing, and there's nothing hidden for an adult to discover. */
+const GATE_HOLD_MS = 3000;
+const gateBtn = document.getElementById("gate-btn");
+const gateRing = document.getElementById("gate-ring");
+const RING_LEN = 163.4;
+let gateStart = 0, gateRaf = 0;
+
+function gateTick() {
+  const p = Math.min(1, (performance.now() - gateStart) / GATE_HOLD_MS);
+  gateRing.style.strokeDashoffset = RING_LEN * (1 - p);
+  if (p >= 1) { gateCancel(); openSwitcher(); return; }
+  gateRaf = requestAnimationFrame(gateTick);
 }
-function bindGate(el, side) {
-  const down = e => { e.preventDefault(); if (!gate[side]) { gate[side] = true; gateUpdate(); } };
-  const up = () => { gate[side] = false; gateUpdate(); };
-  el.addEventListener("touchstart", down, { passive: false });
-  el.addEventListener("touchend", up);
-  el.addEventListener("touchcancel", up);
-  el.addEventListener("mousedown", down);
-  el.addEventListener("mouseup", up);
-  el.addEventListener("mouseleave", up);
+function gateDown(e) {
+  e.preventDefault();
+  if (gateRaf) return;
+  gateStart = performance.now();
+  gateRaf = requestAnimationFrame(gateTick);
 }
-bindGate(document.getElementById("gate-left"), "left");
-bindGate(document.getElementById("gate-right"), "right");
+function gateCancel() {
+  cancelAnimationFrame(gateRaf);
+  gateRaf = 0;
+  gateRing.style.strokeDashoffset = RING_LEN;
+}
+gateBtn.addEventListener("touchstart", gateDown, { passive: false });
+gateBtn.addEventListener("mousedown", gateDown);
+for (const ev of ["touchend", "touchcancel", "mouseup", "mouseleave"]) {
+  gateBtn.addEventListener(ev, gateCancel);
+}
 
 const switcherEl = document.getElementById("switcher");
 let autoDismiss = null;
@@ -668,12 +871,12 @@ switcherEl.addEventListener("click", e => { if (e.target === switcherEl) closeSw
 document.getElementById("sw-close").addEventListener("click", closeSwitcher);
 document.getElementById("pick-drums").addEventListener("click", () => { show("drums"); closeSwitcher(); });
 document.getElementById("pick-guitar").addEventListener("click", () => { show("guitar"); closeSwitcher(); });
+document.getElementById("pick-xylo").addEventListener("click", () => { show("xylo"); closeSwitcher(); });
 
 /* ================= boot ================= */
 
 function relayout() {
-  if (document.getElementById("drums").classList.contains("active")) layoutDrums();
-  else layoutGuitar();
+  LAYOUTS[current]();
 }
 addEventListener("resize", relayout);
 addEventListener("orientationchange", () => setTimeout(relayout, 250));

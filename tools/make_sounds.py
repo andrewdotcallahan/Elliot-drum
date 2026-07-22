@@ -327,6 +327,42 @@ def pluck(freq, duration=2.0):
     return x
 
 
+# --------------------------------------------------------------------------
+# Xylophone (toy 8-bar C major, C5..C6)
+# --------------------------------------------------------------------------
+
+def xylo_bar(freq):
+    """Wooden xylophone bar: quint-tuned partials (f, 3f, ~6.7f) with a soft
+    mallet thock on the attack. Lower bars ring a little longer; everything
+    decays fast enough that glissando mashing stays clean."""
+    rel = freq / 523.25                     # 1.0 at C5
+    dur = 0.85 / rel ** 0.35
+    t = t_axis(dur)
+    decay = 6.5 * rel ** 0.5
+    x = np.zeros(len(t))
+    for mult, amp, dmul in ((1.0, 1.00, 1.0), (3.0, 0.30, 2.2), (6.7, 0.10, 3.5)):
+        x += amp * np.sin(2 * np.pi * freq * mult * t + float(rng.uniform(0, 6.28))) \
+            * np.exp(-t * decay * dmul)
+    n_m = int(SR * 0.003)
+    mallet = shape_spectrum(rng.uniform(-1, 1, n_m), bp_curve(800, 4500, 2))
+    mallet /= max(np.max(np.abs(mallet)), 1e-9)
+    x[:n_m] += 0.18 * mallet * np.linspace(1.0, 0.0, n_m)
+    return shape_spectrum(x, lp_curve(9000, 3))
+
+
+# Filenames are a fixed contract with the UIs: bar index 1..8, low to high.
+XYLO_NOTES = {
+    "xylo_1.wav": 523.25,   # C5
+    "xylo_2.wav": 587.33,   # D5
+    "xylo_3.wav": 659.26,   # E5
+    "xylo_4.wav": 698.46,   # F5
+    "xylo_5.wav": 783.99,   # G5
+    "xylo_6.wav": 880.00,   # A5
+    "xylo_7.wav": 987.77,   # B5
+    "xylo_8.wav": 1046.50,  # C6
+}
+
+
 # Open G major tuning: G2 B2 D3 G3 B3 D4. Filenames are a fixed contract
 # with the UI (StrumView maps string index 1..6 to guitar_sN.wav).
 GUITAR_STRINGS = {
@@ -394,6 +430,11 @@ def main():
     plucks = balance_and_scale_guitar(plucks)
     for name, x in plucks.items():
         write_wav(name, x, do_normalize=False)
+
+    # Xylophone last, so the rng call sequence (and therefore every WAV
+    # above) stays byte-identical to pre-xylophone runs.
+    for name, freq in XYLO_NOTES.items():
+        write_wav(name, xylo_bar(freq))
     print("Done.")
 
 
