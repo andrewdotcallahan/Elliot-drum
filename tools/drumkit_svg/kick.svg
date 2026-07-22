@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="470" height="500" viewBox="0 0 470 500">
+  <defs>
+    <radialGradient id="kh1" cx="0.42" cy="0.34" r="0.85">
+      <stop offset="0" stop-color="#f5f2e9"/>
+      <stop offset="0.4" stop-color="#e6e2d5"/>
+      <stop offset="0.75" stop-color="#c9c4b3"/>
+      <stop offset="0.94" stop-color="#9d9786"/>
+      <stop offset="1" stop-color="#7e7869"/>
+    </radialGradient>
+    <filter id="kt2" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.055 0.055" numOctaves="4" seed="7" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.42  0 0 0 0 0.40  0 0 0 0 0.36  0 0 0 0.5 0"/>
+    <feComposite operator="in" in2="SourceGraphic"/>
+  </filter>
+    <filter id="kt2b"><feGaussianBlur stdDeviation="11.76"/></filter>
+    <linearGradient id="khp3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2e3138"/>
+      <stop offset="0.5" stop-color="#101216"/>
+      <stop offset="1" stop-color="#05060a"/>
+    </linearGradient>
+    <linearGradient id="kleg4" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient>
+  </defs>
+  
+  <defs>
+    <radialGradient id="shdg6"><stop offset="0" stop-color="rgba(0,0,0,0.62)"/>
+    <stop offset="0.7" stop-color="rgba(0,0,0,0.31)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    <filter id="shdf5"><feGaussianBlur stdDeviation="6.5"/></filter>
+  </defs>
+  <ellipse cx="235" cy="462" rx="215" ry="26" fill="url(#shdg6)" filter="url(#shdf5)"/>
+  <!-- spurs -->
+  <g stroke="url(#kleg4)" stroke-width="9" stroke-linecap="round">
+    <line x1="66.44" y1="314.32" x2="27.23999999999998" y2="452"/>
+    <line x1="403.56" y1="314.32" x2="442.76" y2="452"/>
+  </g>
+  <circle cx="27.23999999999998" cy="452" r="7" fill="#111318"/>
+  <circle cx="442.76" cy="452" r="7" fill="#111318"/>
+  <!-- shell rim behind hoop -->
+  <circle cx="235" cy="232" r="222" fill="#0b0d11"/>
+  <circle cx="235" cy="232" r="222" fill="none" stroke="rgba(120,126,134,0.35)" stroke-width="2"/>
+  <!-- black wood hoop -->
+  <circle cx="235" cy="232" r="208" fill="none" stroke="url(#khp3)" stroke-width="26"/>
+  <circle cx="235" cy="232" r="219" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1.6"/>
+  <!-- resonant head -->
+  <circle cx="235" cy="232" r="196" fill="url(#kh1)"/>
+  <circle cx="235" cy="232" r="196" fill="#ffffff" filter="url(#kt2)" opacity="0.5"/>
+  <circle cx="235" cy="232" r="189.14" fill="none" stroke="rgba(80,74,62,0.35)" stroke-width="2.4"/>
+  <g filter="url(#kt2b)">
+    <ellipse cx="191.88" cy="173.2" rx="98" ry="70.56" fill="rgba(255,255,255,0.13)"/>
+    <ellipse cx="258.52" cy="298.64" rx="78.4" ry="54.88" fill="rgba(60,55,45,0.05)"/>
+    <circle cx="235" cy="232" r="31.36" fill="rgba(90,84,70,0.07)"/>
+  </g>
+  
+    <g transform="rotate(108 429.96658584050647 295.3484838468642)">
+      <rect x="422.96658584050647" y="284.3484838468642" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="429.96658584050647" y1="295.3484838468642" x2="444.2324335849338" y2="299.98373876248843" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="444.2324335849338" cy="299.98373876248843" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(144 355.495976719957 397.84848384686427)">
+      <rect x="348.495976719957" y="386.84848384686427" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="355.495976719957" y1="397.84848384686427" x2="364.31275550434407" y2="409.98373876248843" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="364.31275550434407" cy="409.98373876248843" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(180 235 437)">
+      <rect x="228" y="426" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="235" y1="437" x2="235" y2="452" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="235" cy="452" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(216 114.50402328004303 397.84848384686427)">
+      <rect x="107.50402328004303" y="386.84848384686427" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="114.50402328004303" y1="397.84848384686427" x2="105.68724449565593" y2="409.98373876248843" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="105.68724449565593" cy="409.98373876248843" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(252 40.03341415949353 295.34848384686427)">
+      <rect x="33.03341415949353" y="284.34848384686427" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="40.03341415949353" y1="295.34848384686427" x2="25.767566415066227" y2="299.98373876248843" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="25.767566415066227" cy="299.98373876248843" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(288 40.0334141594935 168.65151615313582)">
+      <rect x="33.0334141594935" y="157.65151615313582" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="40.0334141594935" y1="168.65151615313582" x2="25.7675664150662" y2="164.0162612375116" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="25.7675664150662" cy="164.0162612375116" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(324 114.50402328004299 66.15151615313579)">
+      <rect x="107.50402328004299" y="55.15151615313579" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="114.50402328004299" y1="66.15151615313579" x2="105.68724449565588" y2="54.01626123751157" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="105.68724449565588" cy="54.01626123751157" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(360 234.99999999999997 27)">
+      <rect x="227.99999999999997" y="16" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="234.99999999999997" y1="27" x2="234.99999999999997" y2="12" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="234.99999999999997" cy="12" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(396 355.49597671995696 66.15151615313576)">
+      <rect x="348.49597671995696" y="55.15151615313576" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="355.49597671995696" y1="66.15151615313576" x2="364.31275550434407" y2="54.01626123751154" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="364.31275550434407" cy="54.01626123751154" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+    <g transform="rotate(432 429.96658584050647 168.65151615313573)">
+      <rect x="422.96658584050647" y="157.65151615313573" width="14" height="22" rx="4"
+            fill="url(#kleg4)" stroke="rgba(0,0,0,0.55)" stroke-width="0.8"/>
+    </g>
+    <line x1="429.96658584050647" y1="168.65151615313573" x2="444.2324335849338" y2="164.01626123751151" stroke="#8b9199" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="444.2324335849338" cy="164.01626123751151" r="4.6" fill="#b9bfc7" stroke="#2b2e33" stroke-width="0.8"/>
+  <!-- pedal -->
+  <g>
+    <rect x="228" y="432" width="14" height="46" rx="5" fill="#22252b" stroke="#565b63" stroke-width="1.2"/>
+    <path d="M 201 486 L 269 486 L 255 440 L 215 440 Z" fill="#1a1d22" stroke="#4c5158" stroke-width="1.4"/>
+    <circle cx="235" cy="422" r="15" fill="#d8d4c8" stroke="#6e6a5e" stroke-width="2"/>
+  </g>
+</svg>

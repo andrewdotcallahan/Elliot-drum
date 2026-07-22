@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000">
+  <defs>
+    <linearGradient id="bgv" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23242e"/>
+      <stop offset="0.35" stop-color="#191a22"/>
+      <stop offset="0.62" stop-color="#101117"/>
+      <stop offset="1" stop-color="#060709"/>
+    </linearGradient>
+    <radialGradient id="bgspot" cx="0.5" cy="0.18" r="0.85">
+      <stop offset="0" stop-color="rgba(120,126,150,0.20)"/>
+      <stop offset="0.5" stop-color="rgba(90,94,116,0.07)"/>
+      <stop offset="1" stop-color="rgba(0,0,0,0)"/>
+    </radialGradient>
+    <radialGradient id="bgvig" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="0.7" stop-color="rgba(0,0,0,0.05)"/>
+      <stop offset="1" stop-color="rgba(0,0,0,0.55)"/>
+    </radialGradient>
+    <linearGradient id="bgfloor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(78,80,100,0.42)"/>
+      <stop offset="0.25" stop-color="rgba(44,45,58,0.24)"/>
+      <stop offset="1" stop-color="rgba(0,0,0,0)"/>
+    </linearGradient>
+    <filter id="bgblur"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1400" height="1000" fill="url(#bgv)"/>
+  <rect width="1400" height="1000" fill="url(#bgspot)"/>
+  <rect x="-60" y="560" width="1520" height="460" fill="url(#bgfloor)" filter="url(#bgblur)"/>
+  <rect width="1400" height="1000" fill="url(#bgvig)"/>
+</svg>

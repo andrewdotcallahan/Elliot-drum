@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="310" height="300" viewBox="0 0 310 300">
+  
+  
+  
+  <defs>
+    <linearGradient id="shg17" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#07080a"/>
+      <stop offset="0.22" stop-color="#23262c"/>
+      <stop offset="0.40" stop-color="#3a3e46"/>
+      <stop offset="0.55" stop-color="#22252b"/>
+      <stop offset="0.8" stop-color="#0d0e11"/>
+      <stop offset="1" stop-color="#040506"/>
+    </linearGradient>
+    <linearGradient id="lug20" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient>
+    <filter id="sht18" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.05 0.004" numOctaves="3" seed="21" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.75  0 0 0 0 0.78  0 0 0 0 0.84  0 0 0 0.38 0"/>
+    <feComposite operator="in" in2="SourceGraphic"/>
+  </filter>
+    <clipPath id="shc19"><path d="M 13 110 A 142 96 0 0 0 297 110 L 297 202 A 142 96 0 0 1 13 202 Z"/></clipPath>
+  </defs>
+  <path d="M 13 110 A 142 96 0 0 0 297 110 L 297 202 A 142 96 0 0 1 13 202 Z" fill="url(#shg17)"/>
+  <g clip-path="url(#shc19)">
+    <rect x="13" y="110" width="284" height="284"
+          fill="#ffffff" filter="url(#sht18)" opacity="0.55"/>
+    <rect x="13" y="185.44" width="284" height="188"
+          fill="rgba(0,0,0,0.45)"/>
+  </g>
+  
+    <rect x="46.300775" y="168.8980314655502" width="4.398450000000001" height="22.08"
+          rx="1.5708750000000002" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="44.5728125" y="188.21803146555018" width="7.854375000000001" height="47.84" rx="3.2988375000000003"
+          fill="url(#lug20)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="47.4003875" y="193.00203146555017" width="2.1992250000000007" height="38.272000000000006"
+          rx="1.0996125000000003" fill="rgba(255,255,255,0.35)"/>
+    <rect x="112.550236" y="197.56" width="5.379528000000001" height="22.08"
+          rx="1.9212600000000002" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="110.43684999999999" y="216.88" width="9.606300000000001" height="47.84" rx="4.034646"
+          fill="url(#lug20)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="113.895118" y="221.664" width="2.6897640000000007" height="38.272000000000006"
+          rx="1.3448820000000004" fill="rgba(255,255,255,0.35)"/>
+    <rect x="192.070236" y="197.56" width="5.379528000000001" height="22.08"
+          rx="1.9212600000000002" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="189.95685" y="216.88" width="9.606300000000001" height="47.84" rx="4.034646"
+          fill="url(#lug20)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="193.41511799999998" y="221.664" width="2.6897640000000007" height="38.272000000000006"
+          rx="1.3448820000000004" fill="rgba(255,255,255,0.35)"/>
+    <rect x="259.300775" y="168.8980314655502" width="4.398450000000001" height="22.08"
+          rx="1.5708750000000002" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="257.5728125" y="188.21803146555018" width="7.854375000000001" height="47.84" rx="3.2988375000000003"
+          fill="url(#lug20)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="260.4003875" y="193.00203146555017" width="2.1992250000000007" height="38.272000000000006"
+          rx="1.0996125000000003" fill="rgba(255,255,255,0.35)"/>
+  <path d="M 13 202 A 142 96 0 0 0 297 202"
+        fill="none" stroke="#61666e" stroke-width="4.970000000000001"/>
+  <path d="M 48.5 265.36 A 142 96 0 0 0 261.5 265.36"
+        fill="none" stroke="rgba(255,255,255,0.20)" stroke-width="1.988"/>
+  
+  
+  <defs>
+    <radialGradient id="hg21" cx="0.40" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="rgb(248,245,236)"/>
+      <stop offset="0.45" stop-color="rgb(230,226,213)"/>
+      <stop offset="0.78" stop-color="rgb(196,191,176)"/>
+      <stop offset="1" stop-color="rgb(148,143,129)"/>
+    </radialGradient>
+    <filter id="ht22" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.055 0.055" numOctaves="4" seed="24" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.42  0 0 0 0 0.40  0 0 0 0 0.36  0 0 0 0.5 0"/>
+    <feComposite operator="in" in2="SourceGraphic"/>
+  </filter>
+    <filter id="ht22b"><feGaussianBlur stdDeviation="7.1000000000000005"/></filter>
+  </defs>
+  <ellipse cx="155" cy="110" rx="142" ry="96" fill="url(#hg21)"/>
+  <ellipse cx="155" cy="110" rx="142" ry="96" fill="#ffffff" filter="url(#ht22)" opacity="0.5"/>
+  <ellipse cx="155" cy="110" rx="137.74" ry="93.12" fill="none"
+           stroke="rgba(80,74,62,0.35)" stroke-width="1.704"/>
+  <ellipse cx="155" cy="110" rx="127.8" ry="86.4" fill="none"
+           stroke="rgba(255,255,255,0.28)" stroke-width="1.1360000000000001"/>
+  <g filter="url(#ht22b)">
+    <ellipse cx="129.44" cy="83.12" rx="73.84" ry="38.400000000000006"
+             fill="rgba(255,255,255,0.13)"/>
+    <ellipse cx="169.2" cy="138.8" rx="53.96" ry="24.96"
+             fill="rgba(60,55,45,0.06)"/>
+  </g>
+  
+  <defs><linearGradient id="hoopg23" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient></defs>
+  <ellipse cx="155" cy="114.2955" rx="142" ry="96" fill="none"
+           stroke="#1a1d21" stroke-width="8.981499999999999"/>
+  <ellipse cx="155" cy="110" rx="142" ry="96" fill="none"
+           stroke="url(#hoopg23)" stroke-width="7.81"/>
+  <ellipse cx="155" cy="110" rx="142" ry="96" fill="none"
+           stroke="rgba(255,255,255,0.55)" stroke-width="1.4058"
+           stroke-dasharray="127.8 369.2" stroke-dashoffset="220.1"/>
+</svg>

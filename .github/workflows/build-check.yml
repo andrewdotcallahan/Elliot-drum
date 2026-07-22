@@ -1,0 +1,49 @@
+# Compile check: builds BabyBand for iOS without code signing, on every
+# branch push. This verifies the Swift sources compile long before the
+# TestFlight pipeline (which needs Apple secrets) is in play.
+
+name: Build check
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - 'tools/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile (unsigned, Release)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        # actions/checkout v4.2.2, pinned to a full commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Select Xcode 16
+        run: |
+          set -euo pipefail
+          XCODE_APP="$(ls -d /Applications/Xcode_16*.app | sort -V | tail -n 1)"
+          echo "Using ${XCODE_APP}"
+          sudo xcode-select -s "${XCODE_APP}"
+          xcodebuild -version
+
+      - name: Build (no signing)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project BabyBand.xcodeproj \
+            -scheme BabyBand \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO

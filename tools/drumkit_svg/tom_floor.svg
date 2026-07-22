@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  
+  <defs>
+    <radialGradient id="shdg26"><stop offset="0" stop-color="rgba(0,0,0,0.55)"/>
+    <stop offset="0.7" stop-color="rgba(0,0,0,0.275)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    <filter id="shdf25"><feGaussianBlur stdDeviation="6.96"/></filter>
+  </defs>
+  <ellipse cx="200" cy="386" rx="193.20000000000002" ry="27.84" fill="url(#shdg26)" filter="url(#shdf25)"/>
+  <defs><linearGradient id="tleg24" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient></defs>
+    <g stroke="url(#tleg24)" stroke-width="10" stroke-linecap="round">
+      <line x1="52.79999999999998" y1="307.8" x2="30.72" y2="382"/>
+      <line x1="347.20000000000005" y1="307.8" x2="369.28" y2="382"/>
+    </g>
+    <circle cx="30.72" cy="384" r="7" fill="#111318"/>
+    <circle cx="369.28" cy="384" r="7" fill="#111318"/>
+  
+  <defs>
+    <linearGradient id="shg27" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#07080a"/>
+      <stop offset="0.22" stop-color="#23262c"/>
+      <stop offset="0.40" stop-color="#3a3e46"/>
+      <stop offset="0.55" stop-color="#22252b"/>
+      <stop offset="0.8" stop-color="#0d0e11"/>
+      <stop offset="1" stop-color="#040506"/>
+    </linearGradient>
+    <linearGradient id="lug30" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient>
+    <filter id="sht28" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.05 0.004" numOctaves="3" seed="31" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.75  0 0 0 0 0.78  0 0 0 0 0.84  0 0 0 0.38 0"/>
+    <feComposite operator="in" in2="SourceGraphic"/>
+  </filter>
+    <clipPath id="shc29"><path d="M 16 130 A 184 116 0 0 0 384 130 L 384 258 A 184 116 0 0 1 16 258 Z"/></clipPath>
+  </defs>
+  <path d="M 16 130 A 184 116 0 0 0 384 130 L 384 258 A 184 116 0 0 1 16 258 Z" fill="url(#shg27)"/>
+  <g clip-path="url(#shc29)">
+    <rect x="16" y="130" width="368" height="360"
+          fill="#ffffff" filter="url(#sht28)" opacity="0.55"/>
+    <rect x="16" y="234.95999999999998" width="368" height="244"
+          fill="rgba(0,0,0,0.45)"/>
+  </g>
+  
+    <rect x="50.01791999999998" y="193.19999999999996" width="5.564159999999999" height="30.72"
+          rx="1.9871999999999996" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="47.83199999999999" y="220.07999999999996" width="9.935999999999998" height="66.56" rx="4.173119999999999"
+          fill="url(#lug30)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="51.408959999999986" y="226.73599999999996" width="2.7820799999999997" height="53.248000000000005"
+          rx="1.3910399999999998" fill="rgba(255,255,255,0.35)"/>
+    <rect x="119.424008" y="228.8727961061166" width="6.591983999999999" height="30.72"
+          rx="2.3542799999999997" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="116.8343" y="255.7527961061166" width="11.771399999999998" height="66.56" rx="4.943987999999999"
+          fill="url(#lug30)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="121.07200399999999" y="262.4087961061166" width="3.2959919999999996" height="53.248000000000005"
+          rx="1.6479959999999998" fill="rgba(255,255,255,0.35)"/>
+    <rect x="196.136" y="239.6" width="7.728" height="30.72"
+          rx="2.76" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="193.1" y="266.48" width="13.799999999999999" height="66.56" rx="5.795999999999999"
+          fill="url(#lug30)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="198.068" y="273.136" width="3.864" height="53.248000000000005"
+          rx="1.932" fill="rgba(255,255,255,0.35)"/>
+    <rect x="273.98400799999996" y="228.8727961061166" width="6.591983999999999" height="30.72"
+          rx="2.3542799999999997" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="271.3943" y="255.7527961061166" width="11.771399999999998" height="66.56" rx="4.943987999999999"
+          fill="url(#lug30)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="275.632004" y="262.4087961061166" width="3.2959919999999996" height="53.248000000000005"
+          rx="1.6479959999999998" fill="rgba(255,255,255,0.35)"/>
+    <rect x="344.41792000000004" y="193.19999999999996" width="5.564159999999999" height="30.72"
+          rx="1.9871999999999996" fill="#9aa1a9" opacity="0.9"/>
+    <rect x="342.232" y="220.07999999999996" width="9.935999999999998" height="66.56" rx="4.173119999999999"
+          fill="url(#lug30)" stroke="rgba(0,0,0,0.5)" stroke-width="0.8"/>
+    <rect x="345.80896000000007" y="226.73599999999996" width="2.7820799999999997" height="53.248000000000005"
+          rx="1.3910399999999998" fill="rgba(255,255,255,0.35)"/>
+  <path d="M 16 258 A 184 116 0 0 0 384 258"
+        fill="none" stroke="#61666e" stroke-width="6.44"/>
+  <path d="M 62 334.56 A 184 116 0 0 0 338 334.56"
+        fill="none" stroke="rgba(255,255,255,0.20)" stroke-width="2.576"/>
+  
+  
+  <defs>
+    <radialGradient id="hg31" cx="0.40" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="rgb(233,230,222)"/>
+      <stop offset="0.45" stop-color="rgb(216,212,200)"/>
+      <stop offset="0.78" stop-color="rgb(184,180,165)"/>
+      <stop offset="1" stop-color="rgb(139,134,121)"/>
+    </radialGradient>
+    <filter id="ht32" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.055 0.055" numOctaves="4" seed="34" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.42  0 0 0 0 0.40  0 0 0 0 0.36  0 0 0 0.5 0"/>
+    <feComposite operator="in" in2="SourceGraphic"/>
+  </filter>
+    <filter id="ht32b"><feGaussianBlur stdDeviation="9.200000000000001"/></filter>
+  </defs>
+  <ellipse cx="200" cy="130" rx="184" ry="116" fill="url(#hg31)"/>
+  <ellipse cx="200" cy="130" rx="184" ry="116" fill="#ffffff" filter="url(#ht32)" opacity="0.5"/>
+  <ellipse cx="200" cy="130" rx="178.48" ry="112.52" fill="none"
+           stroke="rgba(80,74,62,0.35)" stroke-width="2.208"/>
+  <ellipse cx="200" cy="130" rx="165.6" ry="104.4" fill="none"
+           stroke="rgba(255,255,255,0.28)" stroke-width="1.472"/>
+  <g filter="url(#ht32b)">
+    <ellipse cx="166.88" cy="97.52" rx="95.68" ry="46.400000000000006"
+             fill="rgba(255,255,255,0.13)"/>
+    <ellipse cx="218.4" cy="164.8" rx="69.92" ry="30.16"
+             fill="rgba(60,55,45,0.06)"/>
+  </g>
+  
+  <defs><linearGradient id="hoopg33" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f4f6f8"/>
+    <stop offset="0.18" stop-color="#c8cdd4"/>
+    <stop offset="0.38" stop-color="#7d838c"/>
+    <stop offset="0.52" stop-color="#e9edf1"/>
+    <stop offset="0.70" stop-color="#5c626b"/>
+    <stop offset="0.88" stop-color="#2c3138"/>
+    <stop offset="1" stop-color="#484e56"/>
+  </linearGradient></defs>
+  <ellipse cx="200" cy="135.566" rx="184" ry="116" fill="none"
+           stroke="#1a1d21" stroke-width="11.637999999999998"/>
+  <ellipse cx="200" cy="130" rx="184" ry="116" fill="none"
+           stroke="url(#hoopg33)" stroke-width="10.12"/>
+  <ellipse cx="200" cy="130" rx="184" ry="116" fill="none"
+           stroke="rgba(255,255,255,0.55)" stroke-width="1.8215999999999999"
+           stroke-dasharray="165.6 478.40000000000003" stroke-dashoffset="285.2"/>
+</svg>

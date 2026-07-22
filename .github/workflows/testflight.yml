@@ -1,0 +1,125 @@
+# Builds BabyBand, signs it with Apple cloud-managed signing, and uploads
+# it to TestFlight — entirely on a GitHub-hosted Mac. No local Mac needed.
+#
+# One-time setup (Apple Developer Program, App Store Connect app record,
+# API key, and the four GitHub secrets below) is documented step by step
+# in SETUP-TESTFLIGHT.md at the repo root.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   APPLE_TEAM_ID          — 10-character Apple Developer Team ID
+#   ASC_KEY_ID             — App Store Connect API Key ID
+#   ASC_ISSUER_ID          — App Store Connect API Issuer ID
+#   ASC_API_KEY_P8_BASE64  — the AuthKey_XXXXXXXXXX.p8 file, base64-encoded
+
+name: TestFlight
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'tools/**'
+  workflow_dispatch:
+
+# Least privilege: this workflow only needs to read the repo contents.
+permissions:
+  contents: read
+
+# Never run two uploads at once; queue instead (build numbers stay ordered).
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    name: Build, sign, and upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+    steps:
+      - name: Check out source
+        # actions/checkout v4.2.2, pinned to a full commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Select Xcode 16
+        run: |
+          set -euo pipefail
+          # Pick the newest Xcode 16.x on the runner image (wildcard-safe,
+          # resilient to minor image updates).
+          XCODE_APP="$(ls -d /Applications/Xcode_16*.app | sort -V | tail -n 1)"
+          echo "Using ${XCODE_APP}"
+          sudo xcode-select -s "${XCODE_APP}"
+          xcodebuild -version
+
+      - name: Install App Store Connect API key
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/private_keys"
+          printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 -d > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Archive (Release)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project BabyBand.xcodeproj \
+            -scheme BabyBand \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/BabyBand.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
+      - name: Export and upload to TestFlight
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          # ExportOptions.plist is generated here so teamID can come from the
+          # secret; nothing account-specific is committed to the repo.
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/BabyBand.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Remove API key from runner
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f "$HOME"/private_keys/AuthKey_*.p8
