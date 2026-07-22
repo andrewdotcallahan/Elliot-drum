@@ -80,10 +80,43 @@ def clean_edges(x, fade_in=0.002, fade_out=0.010):
     return x
 
 
-def write_wav(name, x, do_normalize=True):
-    x = clean_edges(x.astype(np.float64))
+# Loudness normalization target, in phone-band RMS units (see
+# phone_loud300). Chosen so the peak-limited drums can just reach it;
+# everything louder (guitar, xylophone, cymbals) is trimmed down to it.
+PHONE_TARGET = 0.065
+PEAK_CAP = 0.97
+
+
+def phone_weight(x):
+    """Rough phone-speaker response: 4th-order highpass at 300 Hz."""
+    X = np.fft.rfft(x)
+    f = np.fft.rfftfreq(len(x), 1.0 / SR)
+    X *= 1.0 / np.sqrt(1.0 + (300.0 / np.maximum(f, 1e-9)) ** 8)
+    return np.fft.irfft(X, len(x))
+
+
+def phone_loud300(x):
+    """Perceived level of a hit on a phone: RMS of the phone-weighted
+    signal over the first 300 ms."""
+    return np.sqrt(np.mean(phone_weight(x)[: int(SR * 0.300)] ** 2))
+
+
+def phone_calibrate(x, target=PHONE_TARGET):
+    """Scale so phone_loud300 == target, capped so the file peak stays
+    below PEAK_CAP (peak-limited sounds land as close as they can)."""
+    g = target / max(phone_loud300(x), 1e-12)
+    g = min(g, PEAK_CAP / max(np.max(np.abs(x)), 1e-12))
+    return x * g
+
+
+def write_wav(name, x, do_normalize=True, phone_target=None, loop=False):
+    x = x.astype(np.float64)
+    if not loop:  # a seamless loop must keep its endpoints untouched
+        x = clean_edges(x)
     if do_normalize:
         x = normalize(x)
+    if phone_target is not None:
+        x = phone_calibrate(x, phone_target)
     pcm = np.clip(np.round(x * 32767.0), -32767, 32767).astype("<i2")
     path = os.path.join(OUT_DIR, name)
     with wave.open(path, "wb") as w:
@@ -162,7 +195,7 @@ def kick():
     knock = np.zeros_like(body)
     knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(200, 1800, 2)) \
         * np.linspace(1.0, 0.0, n_k)
-    x = body + 0.40 * h2 + 0.22 * h3 + 0.6 * knock
+    x = body + 0.65 * h2 + 0.35 * h3 + 0.7 * knock
     return shape_spectrum(x, hp_curve(34, 2))
 
 
@@ -191,7 +224,7 @@ def tom_floor():
     knock = np.zeros_like(body)
     knock[:n_k] = shape_spectrum(rng.uniform(-1, 1, n_k), bp_curve(200, 1500, 2)) \
         * np.linspace(1.0, 0.0, n_k)
-    x = body + 0.35 * h2 + 0.18 * h3 + 0.3 * knock
+    x = body + 0.55 * h2 + 0.30 * h3 + 0.4 * knock
     return shape_spectrum(x, hp_curve(40, 2))
 
 
@@ -379,6 +412,33 @@ def xylo_bar(freq):
     return shape_spectrum(x, lp_curve(9000, 3))
 
 
+# --------------------------------------------------------------------------
+# Trombone (seamless sustain loop; the UI pitch-bends it for the slide)
+# --------------------------------------------------------------------------
+
+def trombone_loop():
+    """~1 s brass sustain at Bb3 built from an exact integer number of
+    periods, so looping it is seamless. All-harmonic spectrum with a
+    ~650 Hz formant bump and a smooth top-end rolloff reads as a warm,
+    slightly honky toy trombone. The player glides pitch by varying
+    playback rate, so only one reference pitch is needed."""
+    f_target = 233.08  # Bb3
+    periods = 233
+    n = 2 * round(periods * SR / f_target / 2)   # even length, whole periods
+    f0 = periods * SR / n                        # exact loop frequency
+    t = np.arange(n) / SR
+    x = np.zeros(n)
+    for k in range(1, 25):
+        fk = k * f0
+        if fk > 8000:
+            break
+        amp = 1.0 / k ** 0.7
+        amp *= 1.0 + 1.6 * np.exp(-(((fk - 650.0) / 400.0) ** 2))
+        amp *= 1.0 / (1.0 + (fk / 3500.0) ** 3)
+        x += amp * np.sin(2.0 * np.pi * fk * t + float(rng.uniform(0, 6.28)))
+    return x - x.mean()
+
+
 # Filenames are a fixed contract with the UIs: bar index 1..8, low to high.
 XYLO_NOTES = {
     "xylo_1.wav": 523.25,   # C5
@@ -445,13 +505,15 @@ def main():
             os.remove(p)
             print(f"  removed stale {old}")
 
-    write_wav("kick.wav", kick())
-    write_wav("snare.wav", snare())
-    write_wav("hihat.wav", hihat())
-    write_wav("tom_hi.wav", tom_hi())
-    write_wav("tom_floor.wav", tom_floor())
-    write_wav("cymbal.wav", cymbal())
-    write_wav("ride.wav", ride())
+    # Every one-shot is leveled to the same perceived loudness through a
+    # phone speaker (phone_loud300 == PHONE_TARGET, peak-capped).
+    write_wav("kick.wav", kick(), phone_target=PHONE_TARGET)
+    write_wav("snare.wav", snare(), phone_target=PHONE_TARGET)
+    write_wav("hihat.wav", hihat(), phone_target=PHONE_TARGET)
+    write_wav("tom_hi.wav", tom_hi(), phone_target=PHONE_TARGET)
+    write_wav("tom_floor.wav", tom_floor(), phone_target=PHONE_TARGET)
+    write_wav("cymbal.wav", cymbal(), phone_target=PHONE_TARGET)
+    write_wav("ride.wav", ride(), phone_target=PHONE_TARGET)
 
     plucks = {}
     for name, freq in GUITAR_STRINGS.items():
@@ -468,13 +530,26 @@ def main():
         amount = 0.9 * min(1.0, max(0.0, (300.0 - freq) / 200.0))
         plucks[name] = small_speaker_exciter(plucks[name], amount)
     plucks = scale_guitar_for_strum(plucks)
+    # Level the guitar as it is actually played — a six-string strum is
+    # one "hit" and should match a single drum hit, so the whole string
+    # set shares one calibration gain.
+    stag = int(SR * STRUM_STAGGER)
+    names = sorted(plucks)
+    length = stag * (len(names) - 1) + max(len(v) for v in plucks.values())
+    strum = np.zeros(length)
+    for i, k in enumerate(names):
+        strum[i * stag:i * stag + len(plucks[k])] += plucks[k]
+    strum_gain = PHONE_TARGET / max(phone_loud300(strum), 1e-12)
     for name, x in plucks.items():
-        write_wav(name, x, do_normalize=False)
+        write_wav(name, x * strum_gain, do_normalize=False)
 
-    # Xylophone last, so the rng call sequence (and therefore every WAV
-    # above) stays byte-identical to pre-xylophone runs.
     for name, freq in XYLO_NOTES.items():
-        write_wav(name, xylo_bar(freq))
+        write_wav(name, xylo_bar(freq), phone_target=PHONE_TARGET)
+
+    # Trombone: a held tone reads louder than a transient at equal RMS,
+    # so it targets a few dB under the one-shots.
+    write_wav("trombone.wav", trombone_loop(), do_normalize=False,
+              phone_target=PHONE_TARGET * 0.55, loop=True)
     print("Done.")
 
 

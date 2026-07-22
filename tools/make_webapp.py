@@ -248,6 +248,9 @@ TEMPLATE = r"""
     background: #fff; opacity: 0; pointer-events: none;
   }
 
+  /* ---------- trombone ---------- */
+  #trom canvas { position: absolute; inset: 0; }
+
   /* ---------- parent gate button + switcher ---------- */
   #gate-btn {
     position: absolute;
@@ -306,6 +309,7 @@ TEMPLATE = r"""
   <canvas id="g-strings"></canvas>
 </div>
 <div id="xylo" class="screen"></div>
+<div id="trom" class="screen"><canvas id="t-canvas"></canvas></div>
 
 <button id="gate-btn" aria-label="Hold to switch instrument">
   <span>♪</span>
@@ -326,6 +330,7 @@ TEMPLATE = r"""
           <rect x="34" y="16" width="10" height="32" rx="5" fill="#58b368"/>
           <rect x="48" y="20" width="10" height="24" rx="5" fill="#4287d6"/>
         </svg>Xylophone</button>
+      <button class="sw-btn" id="pick-trom"><span class="emoji">🎺</span>Trombone</button>
     </div>
     <button class="sw-close" id="sw-close" aria-label="Close">✕</button>
   </div>
@@ -898,15 +903,228 @@ xyloEl.addEventListener("mousedown", e => {
   addEventListener("mousemove", move); addEventListener("mouseup", up);
 });
 
+/* ================= trombone =================
+   One sustained Bb3 loop, pitch-bent by playback rate. Touch starts the
+   tone; dragging along the slide axis glides the pitch down as the
+   slide extends — a full octave of glissando. Monophonic, like the
+   real thing. */
+
+const tromEl = document.getElementById("trom");
+const tCanvas = document.getElementById("t-canvas");
+let tromPos = 0;        // target slide position 0..1 (0 = closed, high)
+let tromShown = 0;      // displayed position (eased toward tromPos)
+let tromTouchId = null;
+let tromSrc = null, tromGainNode = null;
+let tromRaf = 0;
+
+function tromRate(pos) { return Math.pow(2, -pos); }   // down one octave
+
+function tromToneStart() {
+  ensureAudio();
+  const buf = buffers.trombone;
+  if (!buf || tromSrc) return;
+  tromGainNode = ctx.createGain();
+  tromGainNode.gain.setValueAtTime(0, ctx.currentTime);
+  tromGainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.04);
+  tromSrc = ctx.createBufferSource();
+  tromSrc.buffer = buf;
+  tromSrc.loop = true;
+  tromSrc.playbackRate.value = tromRate(tromPos);
+  tromSrc.connect(tromGainNode);
+  tromGainNode.connect(ctx.destination);
+  tromSrc.start();
+}
+
+function tromToneMove() {
+  if (tromSrc) tromSrc.playbackRate.setTargetAtTime(tromRate(tromPos), ctx.currentTime, 0.03);
+}
+
+function tromToneStop() {
+  if (!tromSrc) return;
+  const src = tromSrc, gain = tromGainNode;
+  tromSrc = null; tromGainNode = null;
+  gain.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+  setTimeout(() => { try { src.stop(); } catch (e) {} }, 400);
+}
+
+function tromAxisPos(x, y) {
+  const long = Math.max(innerWidth, innerHeight);
+  const v = innerWidth > innerHeight ? x : y;
+  return Math.min(1, Math.max(0, (v - long * 0.15) / (long * 0.70)));
+}
+
+function brassGradient(c, y, r) {
+  const g = c.createLinearGradient(0, y - r, 0, y + r);
+  g.addColorStop(0, "#f4d98c");
+  g.addColorStop(0.45, "#d9a441");
+  g.addColorStop(1, "#8a6420");
+  return g;
+}
+
+function tromTube(c, x0, x1, y, r) {
+  c.fillStyle = brassGradient(c, y, r);
+  c.beginPath();
+  c.roundRect(x0, y - r, x1 - x0, r * 2, r);
+  c.fill();
+}
+
+function drawTrom() {
+  const c = sizeCanvasKeep(tCanvas);
+  const w = innerWidth, h = innerHeight;
+  let g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#2c1f2a"); g.addColorStop(1, "#171019");
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+
+  const landscape = w > h;
+  c.save();
+  let W = w, H = h;
+  if (!landscape) {
+    W = h; H = w;
+    c.translate(w, 0);
+    c.rotate(Math.PI / 2);   // slide axis runs down the screen
+  }
+  const yc = H * 0.50;
+  const r = H * 0.040;                // tube radius
+  const bellY = yc - H * 0.13;        // bell tube centerline
+  const s1 = yc + H * 0.06, s2 = yc + H * 0.19;  // slide tube centerlines
+
+  // Bell tube and flare.
+  tromTube(c, W * 0.10, W * 0.62, bellY, r);
+  const rimX = W * 0.88, rimR = H * 0.24;
+  g = c.createLinearGradient(0, bellY - rimR, 0, bellY + rimR);
+  g.addColorStop(0, "#f7e2a4"); g.addColorStop(0.5, "#dcae4f"); g.addColorStop(1, "#7d5a1c");
+  c.fillStyle = g;
+  c.beginPath();
+  c.moveTo(W * 0.58, bellY - r);
+  c.bezierCurveTo(W * 0.74, bellY - r * 1.4, W * 0.80, bellY - rimR * 0.85, rimX, bellY - rimR);
+  c.ellipse(rimX, bellY, rimR * 0.10, rimR, 0, -Math.PI / 2, Math.PI / 2);
+  c.bezierCurveTo(W * 0.80, bellY + rimR * 0.85, W * 0.74, bellY + r * 1.4, W * 0.58, bellY + r);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = "#f7e8bf";
+  c.lineWidth = Math.max(2, H * 0.008);
+  c.beginPath();
+  c.ellipse(rimX, bellY, rimR * 0.10, rimR, 0, 0, Math.PI * 2);
+  c.stroke();
+
+  // Mouthpiece.
+  c.fillStyle = "#e8e4da";
+  c.beginPath();
+  c.roundRect(W * 0.045, bellY - r * 1.5, W * 0.055, r * 3, r);
+  c.fill();
+
+  // Inner slide tubes (thin, fixed).
+  tromTube(c, W * 0.12, W * 0.52, s1, r * 0.55);
+  tromTube(c, W * 0.12, W * 0.52, s2, r * 0.55);
+  // Vertical braces joining bell section to slide section.
+  tromTube(c, W * 0.125 - r * 0.5, W * 0.125 + r * 0.5, (bellY + s2) / 2,
+           (s2 - bellY) / 2 + r * 0.6);
+
+  // Outer slide: extends with tromShown, U-turn at the far end.
+  const ext = W * (0.30 + 0.42 * tromShown);
+  const sx0 = W * 0.16, sx1 = sx0 + ext;
+  tromTube(c, sx0, sx1, s1, r * 0.85);
+  tromTube(c, sx0, sx1, s2, r * 0.85);
+  c.strokeStyle = brassGradient(c, (s1 + s2) / 2, (s2 - s1) / 2);
+  c.lineWidth = r * 1.7;
+  c.beginPath();
+  c.arc(sx1, (s1 + s2) / 2, (s2 - s1) / 2, -Math.PI / 2, Math.PI / 2);
+  c.stroke();
+  // Slide grip brace.
+  tromTube(c, sx0 + r * 0.2, sx0 + r * 1.4, (s1 + s2) / 2, (s2 - s1) / 2 + r * 0.5);
+
+  c.restore();
+}
+
+// sizeCanvas resets the transform each call, which redraws need; keep a
+// cached context but re-size only when dimensions changed.
+function sizeCanvasKeep(canvas) {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  if (canvas.width !== innerWidth * dpr || canvas.height !== innerHeight * dpr) {
+    return sizeCanvas(canvas);
+  }
+  const c = canvas.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return c;
+}
+
+function layoutTrom() {
+  sizeCanvas(tCanvas);
+  drawTrom();
+}
+
+function tromAnimate() {
+  tromShown += (tromPos - tromShown) * 0.30;
+  drawTrom();
+  if (tromSrc || Math.abs(tromPos - tromShown) > 0.003) {
+    tromRaf = requestAnimationFrame(tromAnimate);
+  } else {
+    tromRaf = 0;
+  }
+}
+function tromKickAnim() {
+  if (!tromRaf) tromRaf = requestAnimationFrame(tromAnimate);
+}
+
+tromEl.addEventListener("touchstart", e => {
+  e.preventDefault();
+  requestWake();
+  if (tromTouchId === null) {
+    const t = e.changedTouches[0];
+    tromTouchId = t.identifier;
+    tromPos = tromAxisPos(t.clientX, t.clientY);
+    tromToneStart();
+    tromKickAnim();
+  }
+}, { passive: false });
+tromEl.addEventListener("touchmove", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === tromTouchId) {
+      tromPos = tromAxisPos(t.clientX, t.clientY);
+      tromToneMove();
+    }
+  }
+}, { passive: false });
+const tromEnd = e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === tromTouchId) {
+      tromTouchId = null;
+      tromToneStop();
+    }
+  }
+};
+tromEl.addEventListener("touchend", tromEnd);
+tromEl.addEventListener("touchcancel", tromEnd);
+tromEl.addEventListener("mousedown", e => {
+  requestWake();
+  if (tromTouchId !== null) return;
+  tromTouchId = "mouse";
+  tromPos = tromAxisPos(e.clientX, e.clientY);
+  tromToneStart();
+  tromKickAnim();
+  const move = ev => {
+    tromPos = tromAxisPos(ev.clientX, ev.clientY);
+    tromToneMove();
+  };
+  const up = () => {
+    tromTouchId = null;
+    tromToneStop();
+    removeEventListener("mousemove", move); removeEventListener("mouseup", up);
+  };
+  addEventListener("mousemove", move); addEventListener("mouseup", up);
+});
+
 /* ================= parent gate + switcher ================= */
 
 let current = "drums";
 try { current = localStorage.getItem("babyband.instrument") || "drums"; } catch (e) {}
 
-const LAYOUTS = { drums: layoutDrums, guitar: layoutGuitar, xylo: layoutXylo };
+const LAYOUTS = { drums: layoutDrums, guitar: layoutGuitar, xylo: layoutXylo, trom: layoutTrom };
 
 function show(instrument) {
   if (!LAYOUTS[instrument]) instrument = "drums";
+  if (instrument !== "trom") tromToneStop();
   current = instrument;
   try { localStorage.setItem("babyband.instrument", instrument); } catch (e) {}
   for (const name of Object.keys(LAYOUTS)) {
@@ -964,6 +1182,7 @@ document.getElementById("sw-close").addEventListener("click", closeSwitcher);
 document.getElementById("pick-drums").addEventListener("click", () => { show("drums"); closeSwitcher(); });
 document.getElementById("pick-guitar").addEventListener("click", () => { show("guitar"); closeSwitcher(); });
 document.getElementById("pick-xylo").addEventListener("click", () => { show("xylo"); closeSwitcher(); });
+document.getElementById("pick-trom").addEventListener("click", () => { show("trom"); closeSwitcher(); });
 
 /* ================= boot ================= */
 
