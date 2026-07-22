@@ -21,6 +21,8 @@ import struct
 import wave
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parent.parent
 SOUNDS_DIR = ROOT / "BabyBand" / "Sounds"
 ASSETS_DIR = ROOT / "BabyBand" / "Assets.xcassets"
@@ -34,6 +36,38 @@ SPRITES = [
 
 def b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+# Only the hi-hat and crash have real energy above 11 kHz; every other
+# sound is dark enough that half the sample rate loses nothing audible.
+# The 44.1 kHz WAVs in BabyBand/Sounds/ stay untouched as masters (the
+# iOS engine needs one uniform format); the web build embeds these
+# downsampled copies to keep the single-file page small.
+KEEP_FULL_RATE = {"hihat", "cymbal"}
+
+
+def sound_b64(path: Path) -> str:
+    """Base64 WAV for embedding, downsampled 44.1k -> 22.05k unless the
+    sound genuinely uses the top octave. FFT resampling is exact for
+    band-limited signals; a 1 ms edge fade guards against ringing."""
+    if path.stem in KEEP_FULL_RATE:
+        return b64(path)
+    with wave.open(str(path)) as w:
+        rate = w.getframerate()
+        x = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float64)
+    m = len(x) // 2
+    y = np.fft.irfft(np.fft.rfft(x)[: m // 2 + 1], m) * (m / len(x))
+    n_fade = max(1, int(rate / 2 * 0.001))
+    y[:n_fade] *= np.linspace(0.0, 1.0, n_fade)
+    y[-n_fade:] *= np.linspace(1.0, 0.0, n_fade)
+    pcm = np.clip(np.round(y), -32767, 32767).astype("<i2")
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate // 2)
+        w.writeframes(pcm.tobytes())
+    return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def silent_wav_b64(seconds: float = 0.25, rate: int = 8000) -> str:
@@ -50,7 +84,7 @@ def silent_wav_b64(seconds: float = 0.25, rate: int = 8000) -> str:
 
 
 def build() -> None:
-    sounds = {p.stem: b64(p) for p in sorted(SOUNDS_DIR.glob("*.wav"))}
+    sounds = {p.stem: sound_b64(p) for p in sorted(SOUNDS_DIR.glob("*.wav"))}
     images = {
         name: "data:image/png;base64," + b64(ASSETS_DIR / f"{name}.imageset" / f"{name}.png")
         for name in SPRITES
