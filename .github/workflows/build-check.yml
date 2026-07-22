@@ -9,6 +9,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'tools/**'
+      - 'webapp/**'
   workflow_dispatch:
 
 permissions:
