@@ -99,6 +99,27 @@ def build() -> None:
     content = TEMPLATE.replace("/*__ASSETS__*/", assets_js)
 
     OUT_DIR.mkdir(exist_ok=True)
+
+    # Offline support (only active when hosted, e.g. GitHub Pages): a
+    # service worker caches the whole app on first visit, so the
+    # home-screen icon works with no network afterwards. The cache name
+    # embeds a content hash so each deploy swaps the cache atomically.
+    import hashlib
+    build_hash = hashlib.md5(content.encode()).hexdigest()[:8]
+    (OUT_DIR / "sw.js").write_text(SW_TEMPLATE.replace("__HASH__", build_hash))
+    (OUT_DIR / "manifest.json").write_text(json.dumps({
+        "name": "BabyBand",
+        "short_name": "BabyBand",
+        "display": "standalone",
+        "orientation": "any",
+        "background_color": "#1a1512",
+        "theme_color": "#1a1512",
+        "start_url": "./",
+        "icons": [{"src": "apple-touch-icon.png", "sizes": "1024x1024",
+                   "type": "image/png"}],
+    }, indent=2))
+    icon_src = ASSETS_DIR / "AppIcon.appiconset" / "AppIcon.png"
+    (OUT_DIR / "apple-touch-icon.png").write_bytes(icon_src.read_bytes())
     standalone = (
         "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
         "<meta charset=\"utf-8\">\n" + HEAD + "</head>\n<body>\n"
@@ -121,7 +142,44 @@ HEAD = """\
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BabyBand">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>BabyBand</title>
+"""
+
+SW_TEMPLATE = r"""// BabyBand service worker: cache-first with background refresh, so the
+// app opens instantly offline but still picks up new deploys when online.
+const CACHE = "babyband-__HASH__";
+
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(["./"])).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", e => {
+  if (e.request.method !== "GET") return;
+  e.respondWith(
+    caches.match(e.request, { ignoreSearch: true }).then(hit => {
+      const net = fetch(e.request).then(res => {
+        if (res.ok && new URL(e.request.url).origin === self.location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+        }
+        return res;
+      }).catch(() => hit);
+      return hit || net;
+    })
+  );
+});
 """
 
 TEMPLATE = r"""
@@ -918,6 +976,12 @@ addEventListener("orientationchange", () => setTimeout(relayout, 250));
 document.addEventListener("gesturestart", e => e.preventDefault());
 document.addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("dblclick", e => e.preventDefault());
+
+// Offline: register the service worker when hosted (no-op for a local
+// file, where there's nothing to fetch anyway).
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 show(current);
 </script>
