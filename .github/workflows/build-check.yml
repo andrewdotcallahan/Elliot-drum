@@ -29,10 +29,12 @@ jobs:
         # actions/checkout v4.2.2, pinned to a full commit SHA
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Select Xcode 16
+      - name: Select newest stable Xcode
         run: |
           set -euo pipefail
-          XCODE_APP="$(ls -d /Applications/Xcode_16*.app | sort -V | tail -n 1)"
+          # Match the TestFlight workflow: newest non-beta Xcode, so the
+          # compile check exercises the same SDK that ships.
+          XCODE_APP="$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -n 1)"
           echo "Using ${XCODE_APP}"
           sudo xcode-select -s "${XCODE_APP}"
           xcodebuild -version
