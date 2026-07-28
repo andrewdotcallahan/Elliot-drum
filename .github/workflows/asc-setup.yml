@@ -1,0 +1,60 @@
+# One-time App Store Connect setup, driven by the same four repo secrets
+# the TestFlight pipeline uses. Run it from the Actions tab after adding
+# the secrets: it registers the bundle ID, verifies the Team ID, checks
+# the app record, and (optionally) creates the internal tester group and
+# invites a tester — everything Apple's public API allows. Creating the
+# app record itself and the API key are UI-only and stay manual.
+
+name: ASC setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle ID to register/verify
+        default: com.andrewhq.babyband
+        required: true
+      tester_email:
+        description: Apple ID email to invite as internal tester (optional)
+        default: ''
+        required: false
+      group_name:
+        description: Internal TestFlight group name
+        default: Family
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Register bundle ID, verify, set up testers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        # actions/checkout v4.2.2, pinned to a full commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install dependencies
+        run: pip install --quiet pyjwt cryptography
+
+      - name: Run ASC setup
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # Accept the key either as raw PEM (ASC_API_KEY_P8) or as the
+          # base64 form the TestFlight workflow already uses.
+          if [ -z "${ASC_API_KEY_P8:-}" ] && [ -n "${ASC_API_KEY_P8_BASE64:-}" ]; then
+            ASC_API_KEY_P8="$(printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 -d)"
+            export ASC_API_KEY_P8
+          fi
+          python3 tools/asc_setup.py \
+            --bundle-id '${{ inputs.bundle_id }}' \
+            --tester '${{ inputs.tester_email }}' \
+            --group '${{ inputs.group_name }}'
