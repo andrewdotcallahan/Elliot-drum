@@ -248,12 +248,45 @@ def setup_public_link(app_id, group_name, builds, feedback_email):
         if status == 200:
             group = out["data"]
 
+    # Beta App Review requires a review contact. The phone number comes
+    # from a repo secret (this is a public repo — workflow inputs and
+    # logs are world-readable, secrets are not).
+    phone = os.environ.get("REVIEW_CONTACT_PHONE", "")
+    if phone:
+        status, out = api(f"GET", f"/v1/apps/{app_id}/betaAppReviewDetail")
+        detail_id = out.get("data", {}).get("id") if status == 200 else None
+        if detail_id:
+            status, out = api("PATCH", f"/v1/betaAppReviewDetails/{detail_id}", {
+                "data": {"type": "betaAppReviewDetails", "id": detail_id,
+                         "attributes": {
+                             "contactFirstName": os.environ.get("REVIEW_CONTACT_FIRST", "Andrew"),
+                             "contactLastName": os.environ.get("REVIEW_CONTACT_LAST", "Callahan"),
+                             "contactPhone": phone,
+                             "contactEmail": feedback_email or "noreply@example.com"}}})
+            if status == 200:
+                print("beta review contact info set")
+            else:
+                print(f"::warning::could not set review contact ({status}): {out}")
+    else:
+        print("::warning::REVIEW_CONTACT_PHONE secret not set — beta review "
+              "submission will fail until the review contact exists")
+
     # Newest fully processed build -> group + Beta App Review.
     valid = next((b for b in builds
                   if b["attributes"].get("processingState") == "VALID"), None)
     if not valid:
         print("::warning::no processed build to submit for beta review yet")
     else:
+        # Export compliance must be answered on the build for external
+        # testing; the app uses no non-exempt encryption.
+        if valid["attributes"].get("usesNonExemptEncryption") is None:
+            status, out = api("PATCH", f"/v1/builds/{valid['id']}", {
+                "data": {"type": "builds", "id": valid["id"],
+                         "attributes": {"usesNonExemptEncryption": False}}})
+            if status == 200:
+                print("export compliance set on build (no non-exempt encryption)")
+            else:
+                print(f"::warning::could not set export compliance ({status}): {out}")
         version = valid["attributes"].get("version")
         status, out = api("POST", f"/v1/betaGroups/{group_id}/relationships/builds",
                           {"data": [{"type": "builds", "id": valid["id"]}]})
