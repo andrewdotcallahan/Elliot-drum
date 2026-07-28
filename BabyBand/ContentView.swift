@@ -1,8 +1,34 @@
 import SwiftUI
 
-enum Instrument: String {
+enum Instrument: String, CaseIterable {
     case drums
     case guitar
+    case xylophone
+    case trombone
+    case piano
+    case bongos
+
+    var title: String {
+        switch self {
+        case .drums: return "Drums"
+        case .guitar: return "Guitar"
+        case .xylophone: return "Xylophone"
+        case .trombone: return "Trombone"
+        case .piano: return "Piano"
+        case .bongos: return "Bongos"
+        }
+    }
+
+    @ViewBuilder var icon: some View {
+        switch self {
+        case .drums: Text("🥁").font(.system(size: 44))
+        case .guitar: Text("🎸").font(.system(size: 44))
+        case .xylophone: XylophoneIcon()
+        case .trombone: Text("🎺").font(.system(size: 44))
+        case .piano: Text("🎹").font(.system(size: 44))
+        case .bongos: Text("🪘").font(.system(size: 44))
+        }
+    }
 }
 
 struct ContentView: View {
@@ -19,18 +45,33 @@ struct ContentView: View {
                 switch instrument {
                 case .drums: DrumKitView()
                 case .guitar: GuitarView()
+                case .xylophone: XylophoneView()
+                case .trombone: TromboneView()
+                case .piano: PianoView()
+                case .bongos: BongosView()
                 }
             }
 
-            // Invisible adult-only gate: hold both top corners for 2 seconds.
-            ParentGate {
-                showSwitcher = true
+            // Visible parent gate: hold the ♪ button 1.5 s to switch.
+            VStack {
+                HStack {
+                    Spacer()
+                    GateButton {
+                        showSwitcher = true
+                    }
+                    .padding(.top, 12)
+                    .padding(.trailing, 14)
+                }
+                Spacer()
             }
 
             if showSwitcher {
                 InstrumentSwitcher(
                     current: instrument,
                     select: { choice in
+                        if choice != .trombone {
+                            AudioEngine.shared.tromboneStop()
+                        }
                         storedInstrument = choice.rawValue
                         showSwitcher = false
                     },

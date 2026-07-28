@@ -1,62 +1,63 @@
 import SwiftUI
 
-/// Invisible parent gate: an adult must press and hold BOTH top corners
-/// of the screen at the same time for 2 seconds to open the instrument
-/// switcher. A toddler mashing one spot never triggers it.
-struct ParentGate: View {
+/// Visible parent gate: a small dim ♪ button in the top-right corner.
+/// Press and hold it for 1.5 s — a progress ring fills while holding,
+/// releasing early cancels — to open the instrument switcher. A toddler
+/// tap does nothing, and there's nothing hidden for an adult to discover.
+struct GateButton: View {
     var onActivate: () -> Void
 
-    @State private var leftHeld = false
-    @State private var rightHeld = false
+    @State private var holdProgress: CGFloat = 0
+    @State private var isHolding = false
     @State private var holdTask: DispatchWorkItem?
 
-    private let zoneSize: CGFloat = 90
-    private let holdDuration: TimeInterval = 2
+    private let holdDuration: TimeInterval = 1.5
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                hotZone(isHeld: $leftHeld)
-                Spacer()
-                hotZone(isHeld: $rightHeld)
-            }
-            Spacer()
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.28))
+            Text("♪")
+                .font(.system(size: 26))
+                .foregroundColor(.white.opacity(0.55))
+            Circle()
+                .trim(from: 0, to: holdProgress)
+                .stroke(Color.white, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .padding(-3)
         }
-        .ignoresSafeArea()
-        .onChange(of: leftHeld) { _ in updateHoldTimer() }
-        .onChange(of: rightHeld) { _ in updateHoldTimer() }
+        .frame(width: 52, height: 52)
+        .contentShape(Circle().scale(1.3))
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in startHold() }
+                .onEnded { _ in cancelHold() }
+        )
     }
 
-    private func hotZone(isHeld: Binding<Bool>) -> some View {
-        Color.clear
-            .frame(width: zoneSize, height: zoneSize)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isHeld.wrappedValue {
-                            isHeld.wrappedValue = true
-                        }
-                    }
-                    .onEnded { _ in
-                        isHeld.wrappedValue = false
-                    }
-            )
-    }
-
-    private func updateHoldTimer() {
-        holdTask?.cancel()
-        holdTask = nil
-        guard leftHeld && rightHeld else { return }
+    private func startHold() {
+        guard !isHolding else { return }
+        isHolding = true
+        withAnimation(.linear(duration: holdDuration)) {
+            holdProgress = 1
+        }
         let task = DispatchWorkItem {
-            if leftHeld && rightHeld {
-                leftHeld = false
-                rightHeld = false
+            if isHolding {
+                cancelHold()
                 onActivate()
             }
         }
         holdTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + holdDuration, execute: task)
+    }
+
+    private func cancelHold() {
+        isHolding = false
+        holdTask?.cancel()
+        holdTask = nil
+        withAnimation(.easeOut(duration: 0.15)) {
+            holdProgress = 0
+        }
     }
 }
 
@@ -76,11 +77,15 @@ struct InstrumentSwitcher: View {
                 .contentShape(Rectangle())
                 .onTapGesture { dismiss() }
 
-            VStack(spacing: 28) {
-                HStack(spacing: 24) {
-                    instrumentButton(emoji: "🥁", title: "Drums", value: .drums)
-                    instrumentButton(emoji: "🎸", title: "Guitar", value: .guitar)
+            VStack(spacing: 24) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 16)],
+                          spacing: 16) {
+                    ForEach(Instrument.allCases, id: \.self) { instrument in
+                        instrumentButton(instrument)
+                    }
                 }
+                .frame(maxWidth: 560)
+
                 Button(action: dismiss) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 48))
@@ -93,21 +98,23 @@ struct InstrumentSwitcher: View {
         .onDisappear { autoDismissTask?.cancel() }
     }
 
-    private func instrumentButton(emoji: String, title: String, value: Instrument) -> some View {
+    private func instrumentButton(_ instrument: Instrument) -> some View {
         Button {
-            select(value)
+            select(instrument)
         } label: {
-            VStack(spacing: 10) {
-                Text(emoji)
-                    .font(.system(size: 64))
-                Text(title)
-                    .font(.title2.bold())
+            VStack(spacing: 8) {
+                instrument.icon
+                    .frame(height: 52)
+                Text(instrument.title)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(width: 160, height: 160)
+            .frame(maxWidth: .infinity, minHeight: 120)
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(current == value ? Color.blue : Color.white.opacity(0.15))
+                    .fill(current == instrument ? Color.blue : Color.white.opacity(0.15))
             )
         }
     }
@@ -116,5 +123,18 @@ struct InstrumentSwitcher: View {
         let task = DispatchWorkItem { dismiss() }
         autoDismissTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: task)
+    }
+}
+
+/// Mini rainbow-bars icon for the xylophone (there is no xylophone emoji).
+struct XylophoneIcon: View {
+    var body: some View {
+        HStack(alignment: .center, spacing: 4) {
+            ForEach(0..<4, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(RainbowPalette.colors[index * 2])
+                    .frame(width: 10, height: 46 - CGFloat(index) * 8)
+            }
+        }
     }
 }
