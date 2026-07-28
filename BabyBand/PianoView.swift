@@ -10,6 +10,7 @@ struct PianoView: View {
 
     var body: some View {
         GeometryReader { geo in
+            let vertical = Self.usesVerticalKeys(geo.size)
             let frames = Self.keyFrames(in: geo.size)
             ZStack {
                 LinearGradient(
@@ -19,14 +20,16 @@ struct PianoView: View {
                 )
 
                 ForEach(0..<8, id: \.self) { index in
-                    PianoKeyView(strip: RainbowPalette.colors[index], strikes: strikes[index])
+                    PianoKeyView(strip: RainbowPalette.colors[index],
+                                 strikes: strikes[index],
+                                 verticalKey: vertical)
                         .frame(width: frames[index].width, height: frames[index].height)
                         .position(x: frames[index].midX, y: frames[index].midY)
                 }
 
                 MultiTouchView(
-                    onBegan: { id, point in handleTouch(id: id, point: point, frames: frames, isStart: true) },
-                    onMoved: { id, point in handleTouch(id: id, point: point, frames: frames, isStart: false) },
+                    onBegan: { id, point in handleTouch(id: id, point: point, frames: frames, vertical: vertical, isStart: true) },
+                    onMoved: { id, point in handleTouch(id: id, point: point, frames: frames, vertical: vertical, isStart: false) },
                     onEnded: { id in touchKeys[id] = nil }
                 )
             }
@@ -34,25 +37,50 @@ struct PianoView: View {
         .ignoresSafeArea()
     }
 
+    /// Classic vertical keys need enough width for 8 toddler-sized keys;
+    /// a phone in portrait doesn't have it, so keys become stacked
+    /// horizontal slabs there (lowest note at the bottom), like the
+    /// xylophone's portrait arrangement.
+    static func usesVerticalKeys(_ size: CGSize) -> Bool {
+        size.width > size.height || size.width >= 500
+    }
+
     static func keyFrames(in size: CGSize) -> [CGRect] {
         let w = size.width, h = size.height
         let n = 8
-        let gap = max(4, w * 0.006)
-        let total = w * 0.96
-        let keyW = (total - CGFloat(n - 1) * gap) / CGFloat(n)
-        let keyH = h * 0.74
-        let x0 = (w - total) / 2
-        return (0..<n).map { i in
-            CGRect(x: x0 + CGFloat(i) * (keyW + gap), y: h - keyH, width: keyW, height: keyH)
+        if usesVerticalKeys(size) {
+            let gap = max(4, w * 0.006)
+            let total = w * 0.96
+            let keyW = (total - CGFloat(n - 1) * gap) / CGFloat(n)
+            let keyH = h * 0.74
+            let x0 = (w - total) / 2
+            return (0..<n).map { i in
+                CGRect(x: x0 + CGFloat(i) * (keyW + gap), y: h - keyH, width: keyW, height: keyH)
+            }
+        } else {
+            let gap = max(4, h * 0.008)
+            let total = h * 0.88
+            let keyH = (total - CGFloat(n - 1) * gap) / CGFloat(n)
+            let keyW = w * 0.92
+            let y0 = (h - total) / 2
+            return (0..<n).map { i in
+                CGRect(x: (w - keyW) / 2,
+                       y: y0 + CGFloat(n - 1 - i) * (keyH + gap),   // low C at the bottom
+                       width: keyW, height: keyH)
+            }
         }
     }
 
-    private func handleTouch(id: Int, point: CGPoint, frames: [CGRect], isStart: Bool) {
-        // Below the key tops, any x position maps to a key (toddler fingers
-        // shouldn't fall through the gaps).
+    private func handleTouch(id: Int, point: CGPoint, frames: [CGRect], vertical: Bool, isStart: Bool) {
+        // Inside the keyboard region, land between-the-gaps touches on the
+        // nearest key (toddler fingers shouldn't fall through).
         var hit: Int?
-        if point.y >= frames[0].minY {
-            hit = frames.firstIndex { point.x >= $0.minX - 3 && point.x <= $0.maxX + 3 }
+        if vertical {
+            if point.y >= frames[0].minY {
+                hit = frames.firstIndex { point.x >= $0.minX - 3 && point.x <= $0.maxX + 3 }
+            }
+        } else {
+            hit = frames.firstIndex { point.y >= $0.minY - 3 && point.y <= $0.maxY + 3 }
         }
         if let hit, isStart || touchKeys[id] != hit {
             strike(hit)
@@ -72,6 +100,7 @@ struct PianoView: View {
 struct PianoKeyView: View {
     let strip: Color
     let strikes: Int
+    let verticalKey: Bool
 
     @State private var pressed = false
     @State private var flash = false
@@ -80,7 +109,7 @@ struct PianoKeyView: View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             ZStack {
-                UnevenRoundedRectangleCompat(bottomRadius: 14)
+                keyShape
                     .fill(LinearGradient(
                         colors: [Color.white,
                                  Color(red: 0.95, green: 0.94, blue: 0.91),
@@ -95,11 +124,14 @@ struct PianoKeyView: View {
                             .fill(Color.white)
                             .opacity(flash ? 0.6 : 0)
                     )
-                    .frame(width: w * 0.84, height: h * 0.14)
-                    .position(x: w / 2, y: h * 0.88)
+                    .frame(width: verticalKey ? w * 0.84 : w * 0.13,
+                           height: verticalKey ? h * 0.14 : h * 0.72)
+                    .position(x: verticalKey ? w / 2 : w * 0.91,
+                              y: verticalKey ? h * 0.88 : h / 2)
             }
         }
-        .offset(y: pressed ? 6 : 0)
+        .offset(y: pressed && verticalKey ? 6 : 0)
+        .scaleEffect(pressed && !verticalKey ? 0.97 : 1)
         .onChange(of: strikes) { _ in
             pressed = true
             flash = true
@@ -110,6 +142,12 @@ struct PianoKeyView: View {
                 flash = false
             }
         }
+    }
+
+    private var keyShape: AnyShape {
+        verticalKey
+            ? AnyShape(UnevenRoundedRectangleCompat(bottomRadius: 14))
+            : AnyShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

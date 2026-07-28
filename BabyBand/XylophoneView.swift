@@ -182,7 +182,6 @@ struct XyloBarView: View {
 
     @State private var pressed = false
     @State private var flash = false
-    @State private var pulse = false
 
     var body: some View {
         GeometryReader { geo in
@@ -209,8 +208,16 @@ struct XyloBarView: View {
             }
         }
         .scaleEffect(pressed ? 0.955 : 1)
-        .shadow(color: glowing ? Color(red: 1, green: 0.88, blue: 0.47).opacity(pulse ? 0.95 : 0.45) : .black.opacity(0.45),
-                radius: glowing ? (pulse ? 22 : 10) : 7, y: glowing ? 0 : 5)
+        .shadow(color: .black.opacity(0.45), radius: 7, y: 5)
+        .overlay {
+            // A separate view whose repeat-forever animation lives and
+            // dies with it: inserting/removing it on glow changes avoids
+            // the lingering-animation flicker a modifier-based pulse gets
+            // when sibling bars re-render (e.g. the celebration run).
+            if glowing {
+                GlowHalo()
+            }
+        }
         .onChange(of: strikes) { _ in
             pressed = true
             flash = true
@@ -221,24 +228,23 @@ struct XyloBarView: View {
                 flash = false
             }
         }
-        .onChange(of: glowing) { nowGlowing in
-            startPulse(nowGlowing)
-        }
-        .onAppear {
-            startPulse(glowing)
-        }
     }
+}
 
-    private func startPulse(_ active: Bool) {
-        if active {
-            pulse = false
-            withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
-                pulse = true
+/// Pulsing gold outline marking the song's next bar.
+struct GlowHalo: View {
+    @State private var bright = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(Color(red: 1, green: 0.88, blue: 0.47), lineWidth: 4)
+            .shadow(color: Color(red: 1, green: 0.88, blue: 0.47).opacity(0.9),
+                    radius: bright ? 18 : 8)
+            .opacity(bright ? 1 : 0.55)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
+                    bright = true
+                }
             }
-        } else {
-            withAnimation(.easeOut(duration: 0.2)) {
-                pulse = false
-            }
-        }
     }
 }
