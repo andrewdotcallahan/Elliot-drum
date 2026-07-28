@@ -22,6 +22,10 @@ on:
         description: Internal TestFlight group name
         default: Family
         required: false
+      public_group:
+        description: External group with a shareable public link (empty = skip)
+        default: ''
+        required: false
 
 permissions:
   contents: read
@@ -57,4 +61,5 @@ jobs:
           python3 tools/asc_setup.py \
             --bundle-id '${{ inputs.bundle_id }}' \
             --tester '${{ inputs.tester_email }}' \
-            --group '${{ inputs.group_name }}'
+            --group '${{ inputs.group_name }}' \
+            --public-group '${{ inputs.public_group }}'

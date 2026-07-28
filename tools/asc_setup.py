@@ -14,7 +14,12 @@ Does everything the public ASC API allows:
 Env: ASC_KEY_ID, ASC_ISSUER_ID, ASC_API_KEY_P8 (key file contents),
      APPLE_TEAM_ID (optional, verified only)
 Args: --bundle-id com.andrewhq.babyband [--tester you@example.com]
-      [--group Family]
+      [--group Family] [--public-group "Friends & Family"]
+
+--public-group sets up an EXTERNAL group with a shareable public link
+(anyone with the URL can join — no email invites, no ASC accounts),
+assigns the newest processed build to it, and submits that build for
+Beta App Review, which is what activates the link (typically <24 h).
 """
 
 import argparse
@@ -66,6 +71,7 @@ def main():
     ap.add_argument("--bundle-id", required=True)
     ap.add_argument("--tester", default="")
     ap.add_argument("--group", default="Family")
+    ap.add_argument("--public-group", default="")
     args = ap.parse_args()
 
     # -- Bundle ID ---------------------------------------------------------
@@ -183,6 +189,96 @@ def main():
                   f" (uploaded {at.get('uploadedDate')})")
     else:
         print("no builds have reached App Store Connect yet")
+
+    if args.public_group:
+        setup_public_link(app_id, args.public_group, builds,
+                          feedback_email=args.tester or "")
+
+
+def setup_public_link(app_id, group_name, builds, feedback_email):
+    """External group + shareable public link + Beta App Review submission
+    for the newest processed build (review approval activates the link)."""
+    # Beta App Review requires test information to exist.
+    status, out = api(f"GET", f"/v1/apps/{app_id}/betaAppLocalizations")
+    locs = out.get("data", []) if status == 200 else []
+    if not any(l["attributes"].get("locale") == "en-US" for l in locs):
+        status, out = api("POST", "/v1/betaAppLocalizations", {
+            "data": {"type": "betaAppLocalizations",
+                     "attributes": {
+                         "locale": "en-US",
+                         "description": ("BabyBand Jam is a music toy for "
+                                         "toddlers: drums, guitar, xylophone, "
+                                         "trombone, piano, and bongos. Every "
+                                         "sound is synthesized and leveled for "
+                                         "built-in speakers."),
+                         "feedbackEmail": feedback_email or "noreply@example.com"},
+                     "relationships": {"app": {"data": {
+                         "type": "apps", "id": app_id}}}}})
+        if status == 201:
+            print("created TestFlight test information (en-US)")
+        else:
+            print(f"::warning::could not create beta app info ({status}): {out}")
+
+    # External group with a public link.
+    quoted = urllib.request.quote(group_name)
+    status, out = api(
+        "GET", f"/v1/betaGroups?filter[app]={app_id}&filter[name]={quoted}")
+    groups = out.get("data", []) if status == 200 else []
+    if groups:
+        group = groups[0]
+    else:
+        status, out = api("POST", "/v1/betaGroups", {
+            "data": {"type": "betaGroups",
+                     "attributes": {"name": group_name,
+                                    "isInternalGroup": False,
+                                    "publicLinkEnabled": True,
+                                    "publicLinkLimitEnabled": False},
+                     "relationships": {"app": {"data": {
+                         "type": "apps", "id": app_id}}}}})
+        if status != 201:
+            fail(f"could not create external group ({status}): {out}")
+        group = out["data"]
+        print(f"created external group \"{group_name}\"")
+    group_id = group["id"]
+    if not group["attributes"].get("publicLinkEnabled"):
+        status, out = api("PATCH", f"/v1/betaGroups/{group_id}", {
+            "data": {"type": "betaGroups", "id": group_id,
+                     "attributes": {"publicLinkEnabled": True,
+                                    "publicLinkLimitEnabled": False}}})
+        if status == 200:
+            group = out["data"]
+
+    # Newest fully processed build -> group + Beta App Review.
+    valid = next((b for b in builds
+                  if b["attributes"].get("processingState") == "VALID"), None)
+    if not valid:
+        print("::warning::no processed build to submit for beta review yet")
+    else:
+        version = valid["attributes"].get("version")
+        status, out = api("POST", f"/v1/betaGroups/{group_id}/relationships/builds",
+                          {"data": [{"type": "builds", "id": valid["id"]}]})
+        if status in (200, 204):
+            print(f"assigned build {version} to \"{group_name}\"")
+        else:
+            print(f"::warning::could not assign build ({status}): {out}")
+        status, out = api("POST", "/v1/betaAppReviewSubmissions", {
+            "data": {"type": "betaAppReviewSubmissions",
+                     "relationships": {"build": {"data": {
+                         "type": "builds", "id": valid["id"]}}}}})
+        if status == 201:
+            print(f"submitted build {version} for Beta App Review "
+                  "(the public link activates when it's approved, usually <24h)")
+        elif status == 409:
+            print(f"build {version} is already submitted/approved for beta review")
+        else:
+            print(f"::warning::beta review submission failed ({status}): {out}")
+
+    status, out = api("GET", f"/v1/betaGroups/{group_id}")
+    link = out.get("data", {}).get("attributes", {}).get("publicLink") if status == 200 else None
+    if link:
+        print(f"PUBLIC LINK: {link}")
+    else:
+        print("::warning::public link not available yet — re-run after review approval")
 
 
 if __name__ == "__main__":
