@@ -104,6 +104,15 @@ def main():
               f"{args.bundle_id} yet. Create it manually in ASC (New App) — "
               "the public API cannot do this step. TestFlight uploads will "
               "fail until it exists.")
+        status, out = api("GET", "/v1/apps?limit=20")
+        listing = out.get("data", []) if status == 200 else []
+        if listing:
+            print("apps that DO exist on this team:")
+            for a in listing:
+                at = a["attributes"]
+                print(f"  \"{at.get('name')}\"  bundleId={at.get('bundleId')}")
+        else:
+            print("no app records exist on this team at all")
         if args.tester:
             print("skipping tester setup until the app record exists")
         return
