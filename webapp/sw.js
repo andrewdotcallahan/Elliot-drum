@@ -1,6 +1,6 @@
 // BabyBand service worker: cache-first with background refresh, so the
 // app opens instantly offline but still picks up new deploys when online.
-const CACHE = "babyband-004d8489";
+const CACHE = "babyband-a0873c30";
 
 self.addEventListener("install", e => {
   e.waitUntil(

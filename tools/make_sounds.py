@@ -413,6 +413,78 @@ def xylo_bar(freq):
 
 
 # --------------------------------------------------------------------------
+# Piano (toy grand: 8 keys, C4..C5)
+# --------------------------------------------------------------------------
+
+def piano_note(freq):
+    """Struck-string tone: slightly stretched partials (real piano strings
+    are stiff), per-partial decays, a faintly detuned unison string for
+    warmth, and a soft hammer thump on the attack."""
+    rel = freq / 261.63                      # 1.0 at C4
+    dur = 1.5 / rel ** 0.3
+    t = t_axis(dur)
+    x = np.zeros(len(t))
+    stretch = 0.00015
+    for k in range(1, 14):
+        fk = k * freq * np.sqrt(1.0 + stretch * k * k)
+        if fk > 8500:
+            break
+        amp = 1.0 / k ** 1.25
+        decay = 3.0 * rel ** 0.4 + 1.1 * k
+        x += amp * np.sin(2 * np.pi * fk * t + float(rng.uniform(0, 6.28))) \
+            * np.exp(-t * decay)
+    x += 0.4 * np.sin(2 * np.pi * freq * 1.0015 * t) * np.exp(-t * 3.0 * rel ** 0.4)
+    n_h = int(SR * 0.004)
+    thump = shape_spectrum(rng.uniform(-1, 1, n_h), bp_curve(150, 2500, 2))
+    thump /= max(np.max(np.abs(thump)), 1e-9)
+    x[:n_h] += 0.25 * thump * np.linspace(1.0, 0.0, n_h)
+    return shape_spectrum(x, lp_curve(9000, 3))
+
+
+# Filenames are a fixed contract with the UIs: key index 1..8, low to high.
+PIANO_NOTES = {
+    "piano_1.wav": 261.63,   # C4
+    "piano_2.wav": 293.66,   # D4
+    "piano_3.wav": 329.63,   # E4
+    "piano_4.wav": 349.23,   # F4
+    "piano_5.wav": 392.00,   # G4
+    "piano_6.wav": 440.00,   # A4
+    "piano_7.wav": 493.88,   # B4
+    "piano_8.wav": 523.25,   # C5
+}
+
+
+# --------------------------------------------------------------------------
+# Hand drums (congas + bongo)
+# --------------------------------------------------------------------------
+
+def hand_drum(f0, slap):
+    """Conga/bongo hit: a membrane tone that starts ~10% sharp and settles
+    (the classic head bend), one inharmonic overtone, and a short palm-slap
+    noise burst. Higher drums decay faster."""
+    dur = 0.40 if f0 < 220 else 0.30
+    t = t_axis(dur)
+    bend = 1.0 + 0.10 * np.exp(-t * 45.0)
+    phase = 2.0 * np.pi * np.cumsum(f0 * bend) / SR
+    x = np.sin(phase) * np.exp(-t * (11.0 if f0 < 220 else 15.0))
+    x += 0.3 * np.sin(2.3 * phase + 0.5) * np.exp(-t * 28.0)
+    if f0 < 220:  # phone-speaker presence for the low conga (cf. kick)
+        x += 0.45 * np.sin(2.0 * phase + 0.3) * np.exp(-t * 16.0)
+    n_s = int(SR * 0.005)
+    sl = shape_spectrum(rng.uniform(-1, 1, n_s), bp_curve(900, 5000, 2))
+    sl /= max(np.max(np.abs(sl)), 1e-9)
+    x[:n_s] += slap * sl * np.linspace(1.0, 0.0, n_s)
+    return x
+
+
+HAND_DRUMS = {
+    "conga_lo.wav": (185.0, 0.50),
+    "conga_mid.wav": (247.0, 0.55),
+    "bongo_hi.wav": (340.0, 0.70),
+}
+
+
+# --------------------------------------------------------------------------
 # Trombone (seamless sustain loop; the UI pitch-bends it for the slide)
 # --------------------------------------------------------------------------
 
@@ -545,6 +617,12 @@ def main():
 
     for name, freq in XYLO_NOTES.items():
         write_wav(name, xylo_bar(freq), phone_target=PHONE_TARGET)
+
+    for name, freq in PIANO_NOTES.items():
+        write_wav(name, piano_note(freq), phone_target=PHONE_TARGET)
+
+    for name, (freq, slap) in HAND_DRUMS.items():
+        write_wav(name, hand_drum(freq, slap), phone_target=PHONE_TARGET)
 
     # Trombone: a held tone reads louder than a transient at equal RMS,
     # so it targets a few dB under the one-shots.

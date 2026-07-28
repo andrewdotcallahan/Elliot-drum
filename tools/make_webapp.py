@@ -247,6 +247,67 @@ TEMPLATE = r"""
     position: absolute; inset: 0; border-radius: inherit;
     background: #fff; opacity: 0; pointer-events: none;
   }
+  .bar.glow { animation: barGlow 0.9s ease-in-out infinite; }
+  @keyframes barGlow {
+    0%, 100% { box-shadow: 0 6px 14px rgba(0,0,0,0.45), 0 0 22px 6px rgba(255,224,120,0.55), inset 0 2px 3px rgba(255,255,255,0.35); filter: brightness(1.05); }
+    50% { box-shadow: 0 6px 14px rgba(0,0,0,0.45), 0 0 34px 12px rgba(255,224,120,0.95), inset 0 2px 3px rgba(255,255,255,0.35); filter: brightness(1.3); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar.glow { animation: none; box-shadow: 0 6px 14px rgba(0,0,0,0.45), 0 0 30px 10px rgba(255,224,120,0.9); }
+  }
+  #xylo-songs {
+    position: absolute; top: max(10px, env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; z-index: 40;
+  }
+  .song-btn {
+    border: none; border-radius: 999px;
+    padding: 10px 18px;
+    background: rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.85);
+    font-family: inherit; font-size: 16px; font-weight: 700;
+    cursor: pointer;
+  }
+  .song-btn.on { background: #f4c542; color: #3a2c08; }
+
+  /* ---------- piano ---------- */
+  #piano {
+    background:
+      radial-gradient(130% 80% at 50% 0%, rgba(255,255,255,0.05), rgba(0,0,0,0) 55%),
+      linear-gradient(180deg, #2a2330 0%, #151019 100%);
+  }
+  .pkey {
+    position: absolute;
+    background: linear-gradient(180deg, #ffffff 0%, #f2efe8 78%, #ddd8cc 100%);
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 8px 12px rgba(0,0,0,0.5), inset 0 -3px 4px rgba(0,0,0,0.12);
+    will-change: transform;
+  }
+  .pkey .strip {
+    position: absolute; left: 8%; right: 8%; bottom: 5%;
+    height: 14%; border-radius: 8px;
+    box-shadow: inset 0 2px 3px rgba(255,255,255,0.5);
+  }
+
+  /* ---------- bongos ---------- */
+  #bongos {
+    background:
+      radial-gradient(120% 90% at 50% 100%, rgba(255,200,140,0.07), rgba(0,0,0,0) 55%),
+      linear-gradient(180deg, #33231c 0%, #191009 100%);
+  }
+  .hdrum {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 42% 38%, #f4e6c8 0%, #e6d2a8 55%, #cbb184 100%);
+    box-shadow: 0 14px 26px rgba(0,0,0,0.55), inset 0 -6px 14px rgba(120,80,40,0.35);
+    will-change: transform;
+  }
+  .hdrum .ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.9);
+    opacity: 0; pointer-events: none;
+  }
 
   /* ---------- trombone ---------- */
   #trom canvas { position: absolute; inset: 0; }
@@ -308,8 +369,16 @@ TEMPLATE = r"""
   <canvas id="g-bg"></canvas>
   <canvas id="g-strings"></canvas>
 </div>
-<div id="xylo" class="screen"></div>
+<div id="xylo" class="screen">
+  <div id="xylo-bars"></div>
+  <div id="xylo-songs">
+    <button class="song-btn" id="song-twinkle">⭐ Twinkle</button>
+    <button class="song-btn" id="song-mary">⭐ Mary</button>
+  </div>
+</div>
 <div id="trom" class="screen"><canvas id="t-canvas"></canvas></div>
+<div id="piano" class="screen"></div>
+<div id="bongos" class="screen"></div>
 
 <button id="gate-btn" aria-label="Hold to switch instrument">
   <span>♪</span>
@@ -331,6 +400,8 @@ TEMPLATE = r"""
           <rect x="48" y="20" width="10" height="24" rx="5" fill="#4287d6"/>
         </svg>Xylophone</button>
       <button class="sw-btn" id="pick-trom"><span class="emoji">🎺</span>Trombone</button>
+      <button class="sw-btn" id="pick-piano"><span class="emoji">🎹</span>Piano</button>
+      <button class="sw-btn" id="pick-bongos"><span class="emoji">🪘</span>Bongos</button>
     </div>
     <button class="sw-close" id="sw-close" aria-label="Close">✕</button>
   </div>
@@ -789,6 +860,7 @@ guitarEl.addEventListener("mousedown", e => {
 const XYLO_COLORS = ["#e04a3f", "#ef8332", "#f4c542", "#58b368",
                      "#3aa8a0", "#4287d6", "#6f6bd8", "#b465c7"];
 const xyloEl = document.getElementById("xylo");
+const xyloBarsEl = document.getElementById("xylo-bars");
 let xyloBars = [];                 // {el, x, y, w, h} in page coords
 const xyloLastBar = new Map();     // touch id -> bar index (glissando)
 const xyloLastHit = XYLO_COLORS.map(() => -1e9);
@@ -801,7 +873,7 @@ function shade(hex, amt) {
 }
 
 function layoutXylo() {
-  xyloEl.textContent = "";
+  xyloBarsEl.textContent = "";
   xyloBars = [];
   const w = innerWidth, h = innerHeight;
   const landscape = w > h;
@@ -846,9 +918,10 @@ function layoutXylo() {
     const flash = document.createElement("div");
     flash.className = "flash";
     el.appendChild(flash);
-    xyloEl.appendChild(el);
+    xyloBarsEl.appendChild(el);
     xyloBars.push({ el, flash, x: bx, y: by, w: bw, h: bh });
   }
+  updateSongGlow();
 }
 
 function hitXylo(x, y) {
@@ -859,19 +932,74 @@ function hitXylo(x, y) {
   return -1;
 }
 
-function strikeBar(i) {
-  const now = performance.now();
-  if (now - xyloLastHit[i] < 60) return;
-  xyloLastHit[i] = now;
+function barFx(i) {
   play("xylo_" + (i + 1));
   if (REDUCED_MOTION) return;
   const b = xyloBars[i];
+  if (!b) return;
   b.el.animate(
     [{ transform: "scale(1)" }, { transform: "scale(0.955)", offset: 0.3 },
      { transform: "scale(1.01)", offset: 0.7 }, { transform: "scale(1)" }],
     { duration: 240, easing: "ease-out" });
   b.flash.animate([{ opacity: 0.55 }, { opacity: 0 }],
     { duration: 280, easing: "ease-out" });
+}
+
+function strikeBar(i) {
+  const now = performance.now();
+  if (now - xyloLastHit[i] < 60) return;
+  xyloLastHit[i] = now;
+  barFx(i);
+  songNoteHit(i);
+}
+
+/* Follow-the-glow songs: the next note's bar pulses; hitting it advances
+   the song, hitting anything else just plays normally (no fail state).
+   Finishing triggers a little run up the bars, then the song restarts. */
+const SONGS = {
+  twinkle: [1,1,5,5,6,6,5, 4,4,3,3,2,2,1, 5,5,4,4,3,3,2, 5,5,4,4,3,3,2,
+            1,1,5,5,6,6,5, 4,4,3,3,2,2,1],
+  mary: [3,2,1,2,3,3,3, 2,2,2, 3,5,5, 3,2,1,2,3,3,3, 3,2,2,3,2,1],
+};
+let songName = null, songStep = 0, celebrating = false;
+
+function songTargetBar() {
+  return songName && !celebrating ? SONGS[songName][songStep] - 1 : -1;
+}
+function updateSongGlow() {
+  const target = songTargetBar();
+  xyloBars.forEach((b, i) => b.el.classList.toggle("glow", i === target));
+}
+function setSong(name) {
+  songName = songName === name ? null : name;
+  songStep = 0;
+  celebrating = false;
+  document.getElementById("song-twinkle").classList.toggle("on", songName === "twinkle");
+  document.getElementById("song-mary").classList.toggle("on", songName === "mary");
+  updateSongGlow();
+}
+function songNoteHit(i) {
+  if (!songName || celebrating || i !== songTargetBar()) return;
+  songStep++;
+  if (songStep >= SONGS[songName].length) {
+    songStep = 0;
+    celebrating = true;
+    updateSongGlow();
+    for (let k = 0; k < 8; k++) setTimeout(() => barFx(k), 130 * k);
+    setTimeout(() => { celebrating = false; updateSongGlow(); }, 130 * 8 + 250);
+    return;
+  }
+  updateSongGlow();
+}
+for (const [id, name] of [["song-twinkle", "twinkle"], ["song-mary", "mary"]]) {
+  const el = document.getElementById(id);
+  el.addEventListener("touchstart", e => {
+    e.stopPropagation();
+    e.preventDefault();
+    ensureAudio();
+    setSong(name);
+  }, { passive: false });
+  el.addEventListener("click", () => setSong(name));
 }
 
 function xyloTouch(id, x, y, isStart) {
@@ -901,6 +1029,154 @@ xyloEl.addEventListener("mousedown", e => {
     removeEventListener("mousemove", move); removeEventListener("mouseup", up);
   };
   addEventListener("mousemove", move); addEventListener("mouseup", up);
+});
+
+/* ================= piano =================
+   Toy grand: 8 big white keys (C4..C5) with rainbow strips. Multitouch
+   chords and glissando drags, same interaction model as the xylophone. */
+
+const pianoEl = document.getElementById("piano");
+let pianoKeys = [];
+const pianoLastKey = new Map();
+const pianoLastHit = Array(8).fill(-1e9);
+
+function layoutPiano() {
+  pianoEl.textContent = "";
+  pianoKeys = [];
+  const w = innerWidth, h = innerHeight;
+  const n = 8;
+  const gap = Math.max(4, w * 0.006);
+  const total = w * 0.96;
+  const kw = (total - (n - 1) * gap) / n;
+  const kh = h * 0.74;
+  const x0 = (w - total) / 2, y0 = h - kh;
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div");
+    el.className = "pkey";
+    const x = x0 + i * (kw + gap);
+    el.style.cssText = `left:${x}px;top:${y0}px;width:${kw}px;height:${kh}px;`;
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    strip.style.background = XYLO_COLORS[i];
+    el.appendChild(strip);
+    pianoEl.appendChild(el);
+    pianoKeys.push({ el, strip, x, y: y0, w: kw, h: kh });
+  }
+}
+
+function hitPiano(x, y) {
+  for (let i = 0; i < pianoKeys.length; i++) {
+    const k = pianoKeys[i];
+    if (x >= k.x && x <= k.x + k.w && y >= k.y) return i;
+  }
+  return -1;
+}
+
+function strikeKey(i) {
+  const now = performance.now();
+  if (now - pianoLastHit[i] < 60) return;
+  pianoLastHit[i] = now;
+  play("piano_" + (i + 1));
+  if (REDUCED_MOTION) return;
+  const k = pianoKeys[i];
+  k.el.animate(
+    [{ transform: "translateY(0)" }, { transform: "translateY(6px)", offset: 0.25 },
+     { transform: "translateY(0)" }],
+    { duration: 220, easing: "ease-out" });
+  k.strip.animate([{ filter: "brightness(1.7)" }, { filter: "brightness(1)" }],
+    { duration: 260, easing: "ease-out" });
+}
+
+function pianoTouch(id, x, y, isStart) {
+  const i = hitPiano(x, y);
+  if (i >= 0 && (isStart || pianoLastKey.get(id) !== i)) strikeKey(i);
+  pianoLastKey.set(id, i);
+}
+pianoEl.addEventListener("touchstart", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) pianoTouch(t.identifier, t.clientX, t.clientY, true);
+}, { passive: false });
+pianoEl.addEventListener("touchmove", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) pianoTouch(t.identifier, t.clientX, t.clientY, false);
+}, { passive: false });
+const pianoTouchEnd = e => {
+  for (const t of e.changedTouches) pianoLastKey.delete(t.identifier);
+};
+pianoEl.addEventListener("touchend", pianoTouchEnd);
+pianoEl.addEventListener("touchcancel", pianoTouchEnd);
+pianoEl.addEventListener("mousedown", e => {
+  ensureAudio(); requestWake();
+  pianoTouch("mouse", e.clientX, e.clientY, true);
+  const move = ev => pianoTouch("mouse", ev.clientX, ev.clientY, false);
+  const up = () => {
+    pianoLastKey.delete("mouse");
+    removeEventListener("mousemove", move); removeEventListener("mouseup", up);
+  };
+  addEventListener("mousemove", move); addEventListener("mouseup", up);
+});
+
+/* ================= bongos =================
+   Three hand drums, top-down view, sized for baby palms: low conga,
+   mid conga, high bongo. Touch-down to hit, like the drum kit. */
+
+const bongosEl = document.getElementById("bongos");
+const BONGO_SOUNDS = ["conga_lo", "conga_mid", "bongo_hi"];
+let bongoDrums = [];
+
+function layoutBongos() {
+  bongosEl.textContent = "";
+  bongoDrums = [];
+  const w = innerWidth, h = innerHeight;
+  const spots = w > h
+    ? [[0.22 * w, 0.55 * h, 0.55 * h], [0.52 * w, 0.50 * h, 0.46 * h],
+       [0.79 * w, 0.45 * h, 0.36 * h]]
+    : [[0.50 * w, 0.76 * h, 0.56 * w], [0.50 * w, 0.47 * h, 0.47 * w],
+       [0.50 * w, 0.22 * h, 0.37 * w]];
+  spots.forEach(([cx, cy, d], i) => {
+    const el = document.createElement("div");
+    el.className = "hdrum";
+    el.style.cssText =
+      `left:${cx - d / 2}px;top:${cy - d / 2}px;width:${d}px;height:${d}px;` +
+      `border:${Math.max(6, d * 0.045)}px solid #6e4522;`;
+    const ring = document.createElement("div");
+    ring.className = "ring";
+    el.appendChild(ring);
+    bongosEl.appendChild(el);
+    bongoDrums.push({ el, ring, cx, cy, r: d / 2 });
+  });
+}
+
+function strikeBongo(i) {
+  const d = bongoDrums[i];
+  play(BONGO_SOUNDS[i]);
+  if (REDUCED_MOTION) return;
+  d.el.animate(
+    [{ transform: "scale(1)" }, { transform: "scale(0.94)", offset: 0.25 },
+     { transform: "scale(1.02)", offset: 0.65 }, { transform: "scale(1)" }],
+    { duration: 260, easing: "ease-out" });
+  d.ring.animate(
+    [{ transform: "scale(1)", opacity: 0.8 }, { transform: "scale(1.18)", opacity: 0 }],
+    { duration: 350, easing: "ease-out" });
+}
+
+bongosEl.addEventListener("touchstart", e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    for (let i = 0; i < bongoDrums.length; i++) {
+      const d = bongoDrums[i];
+      const dx = t.clientX - d.cx, dy = t.clientY - d.cy;
+      if (dx * dx + dy * dy <= d.r * d.r * 1.3) { strikeBongo(i); break; }
+    }
+  }
+}, { passive: false });
+bongosEl.addEventListener("mousedown", e => {
+  ensureAudio(); requestWake();
+  for (let i = 0; i < bongoDrums.length; i++) {
+    const d = bongoDrums[i];
+    const dx = e.clientX - d.cx, dy = e.clientY - d.cy;
+    if (dx * dx + dy * dy <= d.r * d.r * 1.3) { strikeBongo(i); break; }
+  }
 });
 
 /* ================= trombone =================
@@ -1120,7 +1396,8 @@ tromEl.addEventListener("mousedown", e => {
 let current = "drums";
 try { current = localStorage.getItem("babyband.instrument") || "drums"; } catch (e) {}
 
-const LAYOUTS = { drums: layoutDrums, guitar: layoutGuitar, xylo: layoutXylo, trom: layoutTrom };
+const LAYOUTS = { drums: layoutDrums, guitar: layoutGuitar, xylo: layoutXylo,
+                  trom: layoutTrom, piano: layoutPiano, bongos: layoutBongos };
 
 function show(instrument) {
   if (!LAYOUTS[instrument]) instrument = "drums";
@@ -1183,6 +1460,8 @@ document.getElementById("pick-drums").addEventListener("click", () => { show("dr
 document.getElementById("pick-guitar").addEventListener("click", () => { show("guitar"); closeSwitcher(); });
 document.getElementById("pick-xylo").addEventListener("click", () => { show("xylo"); closeSwitcher(); });
 document.getElementById("pick-trom").addEventListener("click", () => { show("trom"); closeSwitcher(); });
+document.getElementById("pick-piano").addEventListener("click", () => { show("piano"); closeSwitcher(); });
+document.getElementById("pick-bongos").addEventListener("click", () => { show("bongos"); closeSwitcher(); });
 
 /* ================= boot ================= */
 
