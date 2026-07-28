@@ -75,9 +75,11 @@ This key is what lets GitHub upload builds on your behalf.
 2. Click the **Integrations** tab → **App Store Connect API** →
    **Team Keys**.
 3. Click **+** (Generate API Key).
-4. **Name:** `GitHub Actions`. **Access (role):** **App Manager**.
-   (Not Admin — App Manager is the least-privileged role that can
-   upload builds and manage TestFlight.)
+4. **Name:** `GitHub Actions`. **Access (role):** **Admin**.
+   (Admin is required: xcodebuild's cloud-managed signing creates the
+   distribution certificate and provisioning profile via this key, and
+   an App Manager key gets "Cloud signing permission error" there.
+   App Manager suffices only for uploading once signing assets exist.)
 5. Click **Generate**.
 6. Click **Download API Key** and save the `AuthKey_XXXXXXXXXX.p8` file.
    **You can only download it ONCE.** Store it somewhere safe and private
