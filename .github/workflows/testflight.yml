@@ -82,7 +82,11 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+          # CODE_SIGN_IDENTITY forces a distribution profile at archive
+          # time; the default development profile can't be generated on a
+          # team with no registered devices (headless CI has none).
 
       - name: Export and upload to TestFlight
         env:
