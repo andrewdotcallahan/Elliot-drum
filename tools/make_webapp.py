@@ -1137,7 +1137,7 @@ function show(instrument) {
 /* Visible gate: press and hold the ♪ button for 3 s. The progress ring
    fills while holding; releasing early cancels. A toddler tap does
    nothing, and there's nothing hidden for an adult to discover. */
-const GATE_HOLD_MS = 3000;
+const GATE_HOLD_MS = 1500;
 const gateBtn = document.getElementById("gate-btn");
 const gateRing = document.getElementById("gate-ring");
 const RING_LEN = 163.4;
