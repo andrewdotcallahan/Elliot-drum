@@ -70,6 +70,11 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          # The archive is deliberately UNSIGNED: automatic signing at
+          # archive time wants a development profile, which cannot exist
+          # on a team with no registered devices (headless CI has none).
+          # The export step does all the signing with the distribution
+          # identity via cloud-managed signing instead.
           xcodebuild \
             -project BabyBand.xcodeproj \
             -scheme BabyBand \
@@ -77,16 +82,10 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath build/BabyBand.xcarchive \
             archive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            CODE_SIGN_IDENTITY="Apple Distribution"
-          # CODE_SIGN_IDENTITY forces a distribution profile at archive
-          # time; the default development profile can't be generated on a
-          # team with no registered devices (headless CI has none).
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
       - name: Export and upload to TestFlight
         env:
