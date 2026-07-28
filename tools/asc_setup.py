@@ -154,6 +154,36 @@ def main():
     else:
         fail(f"could not add tester ({status}): {out}")
 
+    # Re-send the invitation email (a stale link shows "revoked or
+    # invalid"; a fresh invitation replaces it).
+    status, out = api(
+        "GET", f"/v1/betaTesters?filter[email]={urllib.request.quote(args.tester)}")
+    testers = out.get("data", []) if status == 200 else []
+    if testers:
+        status, out = api("POST", "/v1/betaTesterInvitations", {
+            "data": {"type": "betaTesterInvitations",
+                     "relationships": {
+                         "betaTester": {"data": {"type": "betaTesters",
+                                                 "id": testers[0]["id"]}},
+                         "app": {"data": {"type": "apps", "id": app_id}}}}})
+        if status == 201:
+            print(f"re-sent TestFlight invitation to {args.tester}")
+        else:
+            print(f"::warning::could not re-send invitation ({status}): {out}")
+
+    # Latest builds and their Apple-side processing state.
+    status, out = api(
+        "GET", f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=5")
+    builds = out.get("data", []) if status == 200 else []
+    if builds:
+        print("recent builds:")
+        for b in builds:
+            at = b["attributes"]
+            print(f"  build {at.get('version')}: {at.get('processingState')}"
+                  f" (uploaded {at.get('uploadedDate')})")
+    else:
+        print("no builds have reached App Store Connect yet")
+
 
 if __name__ == "__main__":
     main()
