@@ -176,8 +176,13 @@ def age_rating(app_info_id):
         "medicalOrTreatmentInformation", "profanityOrCrudeHumor",
         "sexualContentGraphicAndNudity", "sexualContentOrNudity",
         "violenceCartoonOrFantasy", "violenceRealistic",
-        "violenceRealisticProlongedGraphicOrSadistic"]}
-    attrs.update({"gambling": False, "unrestrictedWebAccess": False})
+        "violenceRealisticProlongedGraphicOrSadistic",
+        # 2025+ global age rating additions
+        "gunsOrOtherWeapons", "healthOrWellnessTopics", "advertising",
+        "messagingAndChat", "userGeneratedContent", "ageAssurance",
+        "parentalControls"]}
+    attrs.update({"gambling": False, "unrestrictedWebAccess": False,
+                  "lootBox": False})
     status, out = api("PATCH", f"/v1/ageRatingDeclarations/{decl['id']}", {
         "data": {"type": "ageRatingDeclarations", "id": decl["id"],
                  "attributes": attrs}})
@@ -240,18 +245,16 @@ def upload_screenshots(loc_id):
 
 
 def set_free_price(app_id):
-    status, out = api("GET", f"/v1/apps/{app_id}/appPriceSchedule")
-    if status == 200 and out.get("data"):
-        print("price schedule already exists")
-        return
     status, out = api(
-        "GET", f"/v1/apps/{app_id}/appPricePoints?filter[territory]=USA&limit=1")
+        "GET", f"/v1/apps/{app_id}/appPricePoints?filter[territory]=USA&limit=200")
     points = out.get("data", []) if status == 200 else []
-    if not points or points[0]["attributes"].get("customerPrice") not in ("0.0", "0.00", "0"):
-        print(f"::warning::could not find the free price point; set price "
-              f"to Free (0) in App Store Connect -> Pricing")
+    free = next((p for p in points
+                 if p["attributes"].get("customerPrice") in ("0.0", "0.00", "0")), None)
+    if not free:
+        print(f"::warning::could not find the free price point ({status}); "
+              f"set price to Free (0) in App Store Connect -> Pricing")
         return
-    point_id = points[0]["id"]
+    point_id = free["id"]
     status, out = api("POST", "/v1/appPriceSchedules", {
         "data": {"type": "appPriceSchedules",
                  "relationships": {
@@ -264,8 +267,57 @@ def set_free_price(app_id):
                       "attributes": {"startDate": None},
                       "relationships": {"appPricePoint": {"data": {
                           "type": "appPricePoints", "id": point_id}}}}]})
-    print("price set to Free" if status == 201
-          else f"::warning::pricing ({status}): {out} — set Free in ASC UI")
+    if status == 201:
+        print("price set to Free")
+    elif status == 409 and "already" in str(out).lower():
+        print("price schedule already set")
+    else:
+        print(f"::warning::pricing ({status}): {out} — set Free in ASC UI")
+
+
+def set_copyright_and_rights(app_id, version_id):
+    status, out = api("PATCH", f"/v1/appStoreVersions/{version_id}", {
+        "data": {"type": "appStoreVersions", "id": version_id,
+                 "attributes": {"copyright": "© 2026 Andrew Callahan"}}})
+    print("copyright set" if status == 200
+          else f"::warning::copyright ({status}): {out}")
+    status, out = api("PATCH", f"/v1/apps/{app_id}", {
+        "data": {"type": "apps", "id": app_id,
+                 "attributes": {"contentRightsDeclaration":
+                                "DOES_NOT_USE_THIRD_PARTY_CONTENT"}}})
+    print("content rights declared (no third-party content)" if status == 200
+          else f"::warning::content rights ({status}): {out}")
+
+
+def publish_privacy_labels(app_id):
+    """App Privacy 'Data Not Collected', then publish the answers."""
+    status, out = api("POST", "/v1/appDataUsages", {
+        "data": {"type": "appDataUsages",
+                 "relationships": {
+                     "app": {"data": {"type": "apps", "id": app_id}},
+                     "dataProtection": {"data": {
+                         "type": "appDataUsageDataProtections",
+                         "id": "DATA_NOT_COLLECTED"}}}}})
+    if status == 201:
+        print("privacy declaration created: Data Not Collected")
+    elif status == 409:
+        print("privacy declaration already present")
+    else:
+        print(f"::warning::privacy declaration ({status}): {out}")
+    status, out = api("GET", f"/v1/apps/{app_id}/dataUsagePublishState")
+    state = out.get("data") if status == 200 else None
+    if not state:
+        print(f"::warning::could not read privacy publish state ({status}): {out}")
+        return
+    if state["attributes"].get("published"):
+        print("privacy answers already published")
+        return
+    status, out = api("PATCH", f"/v1/appDataUsagesPublishState/{state['id']}", {
+        "data": {"type": "appDataUsagesPublishState", "id": state["id"],
+                 "attributes": {"published": True}}})
+    print("privacy answers PUBLISHED" if status == 200
+          else f"::warning::privacy publish ({status}): {out} — publish in "
+               f"ASC UI: App Privacy -> Data Not Collected -> Publish")
 
 
 def attach_build(app_id, version_id, build_number):
@@ -366,6 +418,8 @@ def main():
         age_rating(info_id)
     upload_screenshots(loc_id)
     set_free_price(app_id)
+    set_copyright_and_rights(app_id, version_id)
+    publish_privacy_labels(app_id)
     attach_build(app_id, version_id, args.build)
     if phone:
         review_details(version_id, phone, email)
