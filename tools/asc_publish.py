@@ -111,7 +111,7 @@ def set_app_info(app_id, privacy_url):
         or (infos[0] if infos else None)
     if not editable:
         print("::warning::no editable app info found")
-        return
+        return None
     info_id = editable["id"]
     status, out = api("PATCH", f"/v1/appInfos/{info_id}", {
         "data": {"type": "appInfos", "id": info_id,
@@ -132,6 +132,7 @@ def set_app_info(app_id, privacy_url):
                                 "privacyPolicyUrl": privacy_url}}})
     print("subtitle + privacy policy URL set" if status == 200
           else f"::warning::app info localization ({status}): {out}")
+    return info_id
 
 
 def version_localization(version_id, support_url, marketing_url):
@@ -161,12 +162,13 @@ def version_localization(version_id, support_url, marketing_url):
     return loc["id"]
 
 
-def age_rating(version_id):
+def age_rating(app_info_id):
+    # The age rating declaration hangs off the app info, not the version.
     status, out = api(
-        "GET", f"/v1/appStoreVersions/{version_id}/ageRatingDeclaration")
+        "GET", f"/v1/appInfos/{app_info_id}/ageRatingDeclaration")
     decl = out.get("data") if status == 200 else None
     if not decl:
-        print("::warning::no age rating declaration found")
+        print(f"::warning::no age rating declaration found ({status}): {out}")
         return
     attrs = {k: "NONE" for k in [
         "alcoholTobaccoOrDrugUseOrReferences", "contests", "gamblingSimulated",
@@ -326,8 +328,10 @@ def submit(app_id, version_id):
                          "type": "reviewSubmissions", "id": sub_id}},
                      "appStoreVersion": {"data": {
                          "type": "appStoreVersions", "id": version_id}}}}})
-    if status not in (201, 409):
-        print(f"::warning::could not add version to submission ({status}): {out}")
+    if status == 201:
+        print("version added to review submission")
+    else:
+        print(f"::warning::add version to submission ({status}): {out}")
     status, out = api("PATCH", f"/v1/reviewSubmissions/{sub_id}", {
         "data": {"type": "reviewSubmissions", "id": sub_id,
                  "attributes": {"submitted": True}}})
@@ -356,9 +360,10 @@ def main():
     app_id = find_app(args.bundle_id)
     print(f"app id: {app_id}")
     version_id = ensure_version(app_id, args.version)
-    set_app_info(app_id, f"{base}/privacy.html")
+    info_id = set_app_info(app_id, f"{base}/privacy.html")
     loc_id = version_localization(version_id, f"{base}/support.html", base)
-    age_rating(version_id)
+    if info_id:
+        age_rating(info_id)
     upload_screenshots(loc_id)
     set_free_price(app_id)
     attach_build(app_id, version_id, args.build)
