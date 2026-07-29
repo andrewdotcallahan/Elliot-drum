@@ -1,0 +1,59 @@
+# Prepares and submits the App Store release using the same repo secrets
+# as the TestFlight pipeline. Metadata, screenshots, pricing, age rating,
+# build attachment, and the review submission are all automated; the App
+# Privacy questionnaire is UI-only and must be completed once by hand.
+
+name: App Store publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle ID
+        default: com.andrewhq.babyband
+        required: true
+      version:
+        description: App Store version string
+        default: '1.0'
+        required: true
+      build_number:
+        description: Build number to attach
+        default: '8'
+        required: true
+      submit:
+        description: Submit for review at the end (true/false)
+        default: 'true'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Prepare and submit App Store release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        # actions/checkout v4.2.2, pinned to a full commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install dependencies
+        run: pip install --quiet pyjwt cryptography
+
+      - name: Run publish
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          REVIEW_CONTACT_PHONE: ${{ secrets.REVIEW_CONTACT_PHONE }}
+        run: |
+          set -euo pipefail
+          ASC_API_KEY_P8="$(printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 -d)"
+          export ASC_API_KEY_P8
+          python3 tools/asc_publish.py \
+            --bundle-id '${{ inputs.bundle_id }}' \
+            --version '${{ inputs.version }}' \
+            --build '${{ inputs.build_number }}' \
+            --submit '${{ inputs.submit }}'
