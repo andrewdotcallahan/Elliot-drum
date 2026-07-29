@@ -177,12 +177,12 @@ def age_rating(app_info_id):
         "sexualContentGraphicAndNudity", "sexualContentOrNudity",
         "violenceCartoonOrFantasy", "violenceRealistic",
         "violenceRealisticProlongedGraphicOrSadistic",
-        # 2025+ global age rating additions
-        "gunsOrOtherWeapons", "healthOrWellnessTopics", "advertising",
-        "messagingAndChat", "userGeneratedContent", "ageAssurance",
-        "parentalControls"]}
-    attrs.update({"gambling": False, "unrestrictedWebAccess": False,
-                  "lootBox": False})
+        "gunsOrOtherWeapons"]}
+    # The 2025+ additions are booleans (per API type errors).
+    attrs.update({k: False for k in [
+        "gambling", "unrestrictedWebAccess", "lootBox",
+        "healthOrWellnessTopics", "advertising", "messagingAndChat",
+        "userGeneratedContent", "ageAssurance", "parentalControls"]})
     status, out = api("PATCH", f"/v1/ageRatingDeclarations/{decl['id']}", {
         "data": {"type": "ageRatingDeclarations", "id": decl["id"],
                  "attributes": attrs}})
