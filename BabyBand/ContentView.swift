@@ -7,6 +7,7 @@ enum Instrument: String, CaseIterable {
     case trombone
     case piano
     case bongos
+    case tongueDrum = "tonguedrum"
 
     var title: String {
         switch self {
@@ -16,6 +17,7 @@ enum Instrument: String, CaseIterable {
         case .trombone: return "Trombone"
         case .piano: return "Piano"
         case .bongos: return "Bongos"
+        case .tongueDrum: return "Tongue Drum"
         }
     }
 
@@ -27,6 +29,7 @@ enum Instrument: String, CaseIterable {
         case .trombone: Text("🎺").font(.system(size: 44))
         case .piano: Text("🎹").font(.system(size: 44))
         case .bongos: Text("🪘").font(.system(size: 44))
+        case .tongueDrum: TongueDrumIcon()
         }
     }
 }
@@ -49,6 +52,7 @@ struct ContentView: View {
                 case .trombone: TromboneView()
                 case .piano: PianoView()
                 case .bongos: BongosView()
+                case .tongueDrum: TongueDrumView()
                 }
             }
 

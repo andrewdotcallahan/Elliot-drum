@@ -12,6 +12,7 @@ final class AudioEngine {
         + (1...6).map { "guitar_s\($0)" }
         + (1...8).map { "xylo_\($0)" }
         + (1...8).map { "piano_\($0)" }
+        + (1...8).map { "tongue_\($0)" }
         + ["conga_lo", "conga_mid", "bongo_hi"]
 
     private let engine = AVAudioEngine()

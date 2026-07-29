@@ -126,6 +126,33 @@ struct InstrumentSwitcher: View {
     }
 }
 
+/// Mini steel-tongue-drum icon (no such emoji exists): a teal disc with
+/// three radial tongue slots.
+struct TongueDrumIcon: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color(red: 0.26, green: 0.53, blue: 0.55),
+                                 Color(red: 0.12, green: 0.30, blue: 0.33)],
+                        center: UnitPoint(x: 0.4, y: 0.35),
+                        startRadius: 0, endRadius: 30))
+            ForEach(0..<3, id: \.self) { index in
+                Capsule()
+                    .stroke(Color(red: 0.05, green: 0.14, blue: 0.16), lineWidth: 2.5)
+                    .frame(width: 7, height: 16)
+                    .offset(y: 13)
+                    .rotationEffect(.degrees(Double(index) * 120))
+            }
+            Circle()
+                .fill(Color(red: 0.05, green: 0.14, blue: 0.16))
+                .frame(width: 6, height: 6)
+        }
+        .frame(width: 48, height: 48)
+    }
+}
+
 /// Mini rainbow-bars icon for the xylophone (there is no xylophone emoji).
 struct XylophoneIcon: View {
     var body: some View {

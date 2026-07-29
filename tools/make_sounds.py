@@ -485,6 +485,47 @@ HAND_DRUMS = {
 
 
 # --------------------------------------------------------------------------
+# Steel tongue drum (8 tongues, C major pentatonic C4..E5)
+# --------------------------------------------------------------------------
+
+def tongue_note(freq):
+    """Soft metallic tongue: a slightly detuned fundamental pair (gentle
+    shimmer), a strong near-octave partial and a quiet third partial, all
+    with long singing decays, plus a soft thumb-pad attack. Lower tongues
+    ring longer."""
+    rel = freq / 261.63                      # 1.0 at C4
+    dur = 2.6 / rel ** 0.4
+    t = t_axis(dur)
+    base_decay = 1.3 * rel ** 0.5
+    x = np.sin(2 * np.pi * freq * t) * np.exp(-t * base_decay)
+    x += 0.6 * np.sin(2 * np.pi * freq * 1.004 * t + float(rng.uniform(0, 6.28))) \
+        * np.exp(-t * base_decay * 1.2)
+    x += 0.35 * np.sin(2 * np.pi * freq * 1.98 * t + float(rng.uniform(0, 6.28))) \
+        * np.exp(-t * base_decay * 2.1)
+    x += 0.12 * np.sin(2 * np.pi * freq * 3.01 * t + float(rng.uniform(0, 6.28))) \
+        * np.exp(-t * base_decay * 3.2)
+    n_a = int(SR * 0.004)
+    thumb = shape_spectrum(rng.uniform(-1, 1, n_a), bp_curve(200, 1500, 2))
+    thumb /= max(np.max(np.abs(thumb)), 1e-9)
+    x[:n_a] += 0.12 * thumb * np.linspace(1.0, 0.0, n_a)
+    return shape_spectrum(x, lp_curve(6000, 3))
+
+
+# Filenames are a fixed contract with the UIs: tongue index 1..8, low to
+# high, C major pentatonic so any flurry of taps is consonant.
+TONGUE_NOTES = {
+    "tongue_1.wav": 261.63,   # C4
+    "tongue_2.wav": 293.66,   # D4
+    "tongue_3.wav": 329.63,   # E4
+    "tongue_4.wav": 392.00,   # G4
+    "tongue_5.wav": 440.00,   # A4
+    "tongue_6.wav": 523.25,   # C5
+    "tongue_7.wav": 587.33,   # D5
+    "tongue_8.wav": 659.26,   # E5
+}
+
+
+# --------------------------------------------------------------------------
 # Trombone (seamless sustain loop; the UI pitch-bends it for the slide)
 # --------------------------------------------------------------------------
 
@@ -623,6 +664,9 @@ def main():
 
     for name, (freq, slap) in HAND_DRUMS.items():
         write_wav(name, hand_drum(freq, slap), phone_target=PHONE_TARGET)
+
+    for name, freq in TONGUE_NOTES.items():
+        write_wav(name, tongue_note(freq), phone_target=PHONE_TARGET)
 
     # Trombone: a held tone reads louder than a transient at equal RMS,
     # so it targets a few dB under the one-shots.
