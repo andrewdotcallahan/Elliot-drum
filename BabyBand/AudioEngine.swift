@@ -22,12 +22,16 @@ final class AudioEngine {
     private let poolSize = 12
     private var observers: [NSObjectProtocol] = []
 
-    // Trombone: a seamless sustain loop pitch-bent through a varispeed
-    // unit; the slide UI glides the rate. Monophonic by design.
-    private let trombonePlayer = AVAudioPlayerNode()
-    private let tromboneVarispeed = AVAudioUnitVarispeed()
-    private var tromboneBuffer: AVAudioPCMBuffer?
-    private var tromboneFadeGeneration = 0
+    // Brass: each is a seamless sustain loop pitch-shifted through a
+    // varispeed unit — the trombone glides the rate continuously, the
+    // trumpet steps it through valve notes. Monophonic by design.
+    private let tromboneVoice = SustainedVoice(soundName: "trombone")
+    private let trumpetVoice = SustainedVoice(soundName: "trumpet")
+
+    /// Trumpet valve notes, low to high: C4 E4 G4 C5 — a C major
+    /// arpeggio, played by rate-shifting the G4 reference loop.
+    static let trumpetNoteFrequencies: [Double] = [261.63, 329.63, 392.00, 523.25]
+    private static let trumpetLoopFrequency = 392.00
 
     private init() {
         configureSession()
@@ -60,7 +64,6 @@ final class AudioEngine {
         for name in Self.soundNames {
             buffers[name] = Self.loadBuffer(named: name)
         }
-        tromboneBuffer = Self.loadBuffer(named: "trombone")
     }
 
     private static func loadBuffer(named name: String) -> AVAudioPCMBuffer? {
@@ -84,12 +87,8 @@ final class AudioEngine {
             engine.connect(player, to: engine.mainMixerNode, format: format)
             players.append(player)
         }
-        if let tromboneBuffer {
-            engine.attach(trombonePlayer)
-            engine.attach(tromboneVarispeed)
-            engine.connect(trombonePlayer, to: tromboneVarispeed, format: tromboneBuffer.format)
-            engine.connect(tromboneVarispeed, to: engine.mainMixerNode, format: tromboneBuffer.format)
-        }
+        tromboneVoice.attach(to: engine)
+        trumpetVoice.attach(to: engine)
         engine.prepare()
     }
 
@@ -97,42 +96,96 @@ final class AudioEngine {
 
     /// position 0 = slide closed (Bb3) ... 1 = fully out (one octave down).
     func tromboneStart(position: Double) {
-        guard let buffer = tromboneBuffer else { return }
         if !engine.isRunning { startEngine() }
         guard engine.isRunning else { return }
-        tromboneVarispeed.rate = Float(pow(2.0, -position))
-        trombonePlayer.stop()
-        trombonePlayer.volume = 0
-        trombonePlayer.scheduleBuffer(buffer, at: nil, options: [.loops], completionHandler: nil)
-        trombonePlayer.play()
-        rampTromboneVolume(to: 1.0, over: 0.05)
+        tromboneVoice.start(rate: pow(2.0, -position))
     }
 
     func tromboneGlide(to position: Double) {
-        tromboneVarispeed.rate = Float(pow(2.0, -position))
+        tromboneVoice.glide(rate: pow(2.0, -position))
     }
 
     func tromboneStop() {
-        guard trombonePlayer.isPlaying else { return }
-        rampTromboneVolume(to: 0.0, over: 0.12) { [weak self] in
-            self?.trombonePlayer.stop()
-        }
+        tromboneVoice.stop()
     }
 
-    /// Short stepped fade (the node's volume has no built-in ramp); a new
-    /// ramp invalidates any ramp still in flight.
-    private func rampTromboneVolume(to target: Float, over duration: TimeInterval,
-                                    completion: (() -> Void)? = nil) {
-        tromboneFadeGeneration += 1
-        let generation = tromboneFadeGeneration
-        let steps = 6
-        let start = trombonePlayer.volume
-        for step in 1...steps {
-            let fraction = Float(step) / Float(steps)
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration * Double(step) / Double(steps)) { [weak self] in
-                guard let self, self.tromboneFadeGeneration == generation else { return }
-                self.trombonePlayer.volume = start + (target - start) * fraction
-                if step == steps { completion?() }
+    // MARK: - Trumpet
+
+    /// note is an index into trumpetNoteFrequencies (0..3, low to high).
+    func trumpetStart(note: Int) {
+        if !engine.isRunning { startEngine() }
+        guard engine.isRunning else { return }
+        trumpetVoice.start(rate: Self.trumpetRate(note))
+    }
+
+    func trumpetChange(to note: Int) {
+        trumpetVoice.glide(rate: Self.trumpetRate(note))
+    }
+
+    func trumpetStop() {
+        trumpetVoice.stop()
+    }
+
+    private static func trumpetRate(_ note: Int) -> Double {
+        let index = min(max(note, 0), trumpetNoteFrequencies.count - 1)
+        return trumpetNoteFrequencies[index] / trumpetLoopFrequency
+    }
+
+    /// One monophonic looped-sustain voice: player -> varispeed -> mixer,
+    /// with short stepped volume ramps on start/stop (the node's volume
+    /// has no built-in ramp); a new ramp invalidates any ramp in flight.
+    private final class SustainedVoice {
+        private let player = AVAudioPlayerNode()
+        private let varispeed = AVAudioUnitVarispeed()
+        private let buffer: AVAudioPCMBuffer?
+        private var fadeGeneration = 0
+
+        init(soundName: String) {
+            buffer = AudioEngine.loadBuffer(named: soundName)
+        }
+
+        func attach(to engine: AVAudioEngine) {
+            guard let buffer else { return }
+            engine.attach(player)
+            engine.attach(varispeed)
+            engine.connect(player, to: varispeed, format: buffer.format)
+            engine.connect(varispeed, to: engine.mainMixerNode, format: buffer.format)
+        }
+
+        func start(rate: Double) {
+            guard let buffer else { return }
+            varispeed.rate = Float(rate)
+            player.stop()
+            player.volume = 0
+            player.scheduleBuffer(buffer, at: nil, options: [.loops], completionHandler: nil)
+            player.play()
+            ramp(to: 1.0, over: 0.05)
+        }
+
+        func glide(rate: Double) {
+            varispeed.rate = Float(rate)
+        }
+
+        func stop() {
+            guard player.isPlaying else { return }
+            ramp(to: 0.0, over: 0.12) { [weak self] in
+                self?.player.stop()
+            }
+        }
+
+        private func ramp(to target: Float, over duration: TimeInterval,
+                          completion: (() -> Void)? = nil) {
+            fadeGeneration += 1
+            let generation = fadeGeneration
+            let steps = 6
+            let start = player.volume
+            for step in 1...steps {
+                let fraction = Float(step) / Float(steps)
+                DispatchQueue.main.asyncAfter(deadline: .now() + duration * Double(step) / Double(steps)) { [weak self] in
+                    guard let self, self.fadeGeneration == generation else { return }
+                    self.player.volume = start + (target - start) * fraction
+                    if step == steps { completion?() }
+                }
             }
         }
     }

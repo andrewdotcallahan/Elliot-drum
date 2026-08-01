@@ -552,6 +552,35 @@ def trombone_loop():
     return x - x.mean()
 
 
+# --------------------------------------------------------------------------
+# Trumpet (seamless sustain loop; the UI steps it through valve notes)
+# --------------------------------------------------------------------------
+
+def trumpet_loop():
+    """~1 s brass sustain at G4 built from an exact integer number of
+    periods, so looping it is seamless (same trick as the trombone). A
+    brighter build than the trombone — higher formant bump (~1.2 kHz),
+    gentler harmonic rolloff, top end kept out to 5 kHz — reads as a
+    small, cheerful toy trumpet. The player steps playback rate through
+    a C major arpeggio (C4 E4 G4 C5), so one reference pitch covers all
+    four valve notes."""
+    f_target = 392.00  # G4
+    periods = 392
+    n = 2 * round(periods * SR / f_target / 2)   # even length, whole periods
+    f0 = periods * SR / n                        # exact loop frequency
+    t = np.arange(n) / SR
+    x = np.zeros(n)
+    for k in range(1, 30):
+        fk = k * f0
+        if fk > 10000:
+            break
+        amp = 1.0 / k ** 0.55
+        amp *= 1.0 + 1.3 * np.exp(-(((fk - 1200.0) / 700.0) ** 2))
+        amp *= 1.0 / (1.0 + (fk / 5000.0) ** 3)
+        x += amp * np.sin(2.0 * np.pi * fk * t + float(rng.uniform(0, 6.28)))
+    return x - x.mean()
+
+
 # Filenames are a fixed contract with the UIs: bar index 1..8, low to high.
 XYLO_NOTES = {
     "xylo_1.wav": 523.25,   # C5
@@ -671,6 +700,9 @@ def main():
     # Trombone: a held tone reads louder than a transient at equal RMS,
     # so it targets a few dB under the one-shots.
     write_wav("trombone.wav", trombone_loop(), do_normalize=False,
+              phone_target=PHONE_TARGET * 0.55, loop=True)
+    # Trumpet last, so its rng draws don't shift any earlier sound.
+    write_wav("trumpet.wav", trumpet_loop(), do_normalize=False,
               phone_target=PHONE_TARGET * 0.55, loop=True)
     print("Done.")
 

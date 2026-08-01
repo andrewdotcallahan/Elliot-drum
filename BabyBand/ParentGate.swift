@@ -153,6 +153,45 @@ struct TongueDrumIcon: View {
     }
 }
 
+/// Mini slide-trombone icon (the 🎺 emoji is a trumpet, which now uses
+/// it): a brass bell tube over the long slide with its U-turn.
+struct TromboneIcon: View {
+    var body: some View {
+        Canvas { context, size in
+            let brass = Color(red: 0.87, green: 0.66, blue: 0.27)
+            let dark = Color(red: 0.60, green: 0.44, blue: 0.15)
+
+            // Bell tube and flare.
+            context.fill(Path(roundedRect: CGRect(x: 2, y: 13, width: 30, height: 7),
+                              cornerRadius: 3.5),
+                         with: .color(brass))
+            var bell = Path()
+            bell.move(to: CGPoint(x: 28, y: 13))
+            bell.addQuadCurve(to: CGPoint(x: 46, y: 2),
+                              control: CGPoint(x: 40, y: 11))
+            bell.addLine(to: CGPoint(x: 46, y: 31))
+            bell.addQuadCurve(to: CGPoint(x: 28, y: 20),
+                              control: CGPoint(x: 40, y: 22))
+            bell.closeSubpath()
+            context.fill(bell, with: .color(brass))
+
+            // Slide tubes with the U-turn at the far end.
+            context.fill(Path(roundedRect: CGRect(x: 4, y: 30, width: 31, height: 4),
+                              cornerRadius: 2),
+                         with: .color(dark))
+            context.fill(Path(roundedRect: CGRect(x: 4, y: 40, width: 31, height: 4),
+                              cornerRadius: 2),
+                         with: .color(dark))
+            var uTurn = Path()
+            uTurn.addArc(center: CGPoint(x: 35, y: 37), radius: 5,
+                         startAngle: .degrees(-90), endAngle: .degrees(90),
+                         clockwise: false)
+            context.stroke(uTurn, with: .color(dark), lineWidth: 4)
+        }
+        .frame(width: 48, height: 48)
+    }
+}
+
 /// Mini rainbow-bars icon for the xylophone (there is no xylophone emoji).
 struct XylophoneIcon: View {
     var body: some View {
