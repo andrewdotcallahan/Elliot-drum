@@ -7,14 +7,18 @@ import AVFoundation
 final class AudioEngine {
     static let shared = AudioEngine()
 
-    static let soundNames: [String] =
-        ["kick", "snare", "hihat", "tom_hi", "tom_floor", "cymbal", "ride"]
-        + (1...6).map { "guitar_s\($0)" }
-        + (1...6).map { "electric_s\($0)" }
-        + (1...8).map { "xylo_\($0)" }
-        + (1...8).map { "piano_\($0)" }
-        + (1...8).map { "tongue_\($0)" }
-        + ["conga_lo", "conga_mid", "bongo_hi"]
+    static let soundNames: [String] = {
+        // Built step by step: one long `+` chain times out the type checker.
+        var names = ["kick", "snare", "hihat", "tom_hi", "tom_floor", "cymbal", "ride"]
+        let numbered: [(prefix: String, count: Int)] = [
+            ("guitar_s", 6), ("electric_s", 6), ("xylo_", 8), ("piano_", 8), ("tongue_", 8)
+        ]
+        for (prefix, count) in numbered {
+            names += (1...count).map { "\(prefix)\($0)" }
+        }
+        names += ["conga_lo", "conga_mid", "bongo_hi"]
+        return names
+    }()
 
     private let engine = AVAudioEngine()
     private var players: [AVAudioPlayerNode] = []
