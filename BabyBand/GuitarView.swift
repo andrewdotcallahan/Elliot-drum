@@ -16,15 +16,31 @@ private func guitarStringY(_ index: Int, height: CGFloat) -> CGFloat {
     return bottom - CGFloat(index) * step
 }
 
+/// Both guitars play the same way (open G, strum anywhere); they differ
+/// only in sound set and body artwork.
+enum GuitarStyle {
+    case acoustic
+    case electric
+
+    /// Sound file prefix: guitar_s1...s6 or electric_s1...s6.
+    var soundPrefix: String {
+        switch self {
+        case .acoustic: return "guitar_s"
+        case .electric: return "electric_s"
+        }
+    }
+}
+
 struct GuitarView: View {
-    private static let strings: [GuitarStringSpec] = [
-        GuitarStringSpec(id: 0, sound: "guitar_s1", thickness: 6.0),
-        GuitarStringSpec(id: 1, sound: "guitar_s2", thickness: 5.3),
-        GuitarStringSpec(id: 2, sound: "guitar_s3", thickness: 4.6),
-        GuitarStringSpec(id: 3, sound: "guitar_s4", thickness: 3.9),
-        GuitarStringSpec(id: 4, sound: "guitar_s5", thickness: 3.2),
-        GuitarStringSpec(id: 5, sound: "guitar_s6", thickness: 2.5)
-    ]
+    var style: GuitarStyle = .acoustic
+
+    private static let thicknesses: [CGFloat] = [6.0, 5.3, 4.6, 3.9, 3.2, 2.5]
+
+    private var strings: [GuitarStringSpec] {
+        Self.thicknesses.enumerated().map { index, thickness in
+            GuitarStringSpec(id: index, sound: "\(style.soundPrefix)\(index + 1)", thickness: thickness)
+        }
+    }
 
     @State private var pluckCounts = [Int](repeating: 0, count: 6)
     @State private var lastPluckTimes = [Date](repeating: .distantPast, count: 6)
@@ -33,9 +49,12 @@ struct GuitarView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                GuitarBodyBackground(size: geo.size)
+                switch style {
+                case .acoustic: GuitarBodyBackground(size: geo.size)
+                case .electric: ElectricGuitarBodyBackground(size: geo.size)
+                }
 
-                ForEach(Self.strings) { string in
+                ForEach(strings) { string in
                     GuitarStringView(spec: string, pluckCount: pluckCounts[string.id], width: geo.size.width)
                         .position(x: geo.size.width / 2,
                                   y: guitarStringY(string.id, height: geo.size.height))
@@ -57,7 +76,7 @@ struct GuitarView: View {
 
     private func handleTouch(y: CGFloat, height: CGFloat) {
         let step = (height * 0.70) / 5
-        for string in Self.strings {
+        for string in strings {
             let sy = guitarStringY(string.id, height: height)
             let hit: Bool
             if let prev = previousY {
@@ -208,6 +227,155 @@ struct GuitarBodyBackground: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// The electric guitar top: a glossy cherry-sunburst finish, a cream
+/// pickguard, two chrome humbuckers under the strings, a tune-o-matic
+/// bridge with saddles, a stop tailpiece, and volume/tone knobs. Same
+/// string geometry as the acoustic, so the strings sit over the
+/// pickups' pole pieces.
+struct ElectricGuitarBodyBackground: View {
+    let size: CGSize
+
+    var body: some View {
+        let w = size.width
+        let h = size.height
+        let unit = min(w, h)
+        let stringTop = guitarStringY(5, height: h)
+        let stringBottom = guitarStringY(0, height: h)
+        let spanHeight = stringBottom - stringTop
+        let pickupWidth = unit * 0.13
+        let pickupHeight = spanHeight + unit * 0.12
+        let bridgeX = w * 0.78
+        let tailX = w * 0.89
+
+        ZStack {
+            // Cherry sunburst: bright center fading to deep burgundy edges.
+            RadialGradient(
+                colors: [
+                    Color(red: 0.93, green: 0.36, blue: 0.16),
+                    Color(red: 0.74, green: 0.10, blue: 0.10),
+                    Color(red: 0.30, green: 0.03, blue: 0.05)
+                ],
+                center: UnitPoint(x: 0.55, y: 0.5),
+                startRadius: 0,
+                endRadius: max(w, h) * 0.62
+            )
+            // Glossy clear-coat sheen.
+            LinearGradient(
+                stops: [
+                    Gradient.Stop(color: Color.white.opacity(0.0), location: 0.0),
+                    Gradient.Stop(color: Color.white.opacity(0.16), location: 0.22),
+                    Gradient.Stop(color: Color.white.opacity(0.0), location: 0.45),
+                    Gradient.Stop(color: Color.white.opacity(0.0), location: 1.0)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Cream pickguard behind the pickups.
+            RoundedRectangle(cornerRadius: unit * 0.08, style: .continuous)
+                .fill(Color(red: 0.96, green: 0.92, blue: 0.82))
+                .overlay(
+                    RoundedRectangle(cornerRadius: unit * 0.08, style: .continuous)
+                        .stroke(Color.black.opacity(0.35), lineWidth: 2)
+                )
+                .frame(width: w * 0.40, height: pickupHeight + unit * 0.10)
+                .position(x: w * 0.47, y: (stringTop + stringBottom) / 2)
+                .shadow(color: .black.opacity(0.35), radius: 6, x: 3, y: 4)
+
+            // Neck and bridge humbuckers.
+            ForEach([w * 0.38, w * 0.58], id: \.self) { x in
+                Humbucker(width: pickupWidth, height: pickupHeight,
+                          centerY: (stringTop + stringBottom) / 2, screenHeight: h)
+                    .position(x: x, y: (stringTop + stringBottom) / 2)
+            }
+
+            // Tune-o-matic bridge: a chrome bar with one saddle per string.
+            RoundedRectangle(cornerRadius: unit * 0.015, style: .continuous)
+                .fill(Self.chrome)
+                .frame(width: unit * 0.05, height: spanHeight + unit * 0.10)
+                .position(x: bridgeX, y: (stringTop + stringBottom) / 2)
+                .shadow(color: .black.opacity(0.45), radius: 4, x: 2, y: 3)
+            ForEach(0..<6, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color(white: 0.55))
+                    .frame(width: unit * 0.03, height: unit * 0.018)
+                    .position(x: bridgeX, y: guitarStringY(index, height: h))
+            }
+
+            // Stop tailpiece where the strings anchor.
+            Capsule()
+                .fill(Self.chrome)
+                .frame(width: unit * 0.06, height: spanHeight + unit * 0.14)
+                .position(x: tailX, y: (stringTop + stringBottom) / 2)
+                .shadow(color: .black.opacity(0.45), radius: 4, x: 2, y: 3)
+
+            // Volume and tone knobs in the lower corner, clear of the strings.
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(red: 0.98, green: 0.85, blue: 0.45),
+                                     Color(red: 0.62, green: 0.44, blue: 0.12)],
+                            center: UnitPoint(x: 0.35, y: 0.3),
+                            startRadius: 0,
+                            endRadius: unit * 0.03)
+                    )
+                    .overlay(Circle().stroke(Color.black.opacity(0.4), lineWidth: 1))
+                    .frame(width: unit * 0.055, height: unit * 0.055)
+                    .position(x: w * (0.70 + CGFloat(index) * 0.07),
+                              y: min(h - unit * 0.035, stringBottom + (h - stringBottom) * 0.55))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    static let chrome = LinearGradient(
+        colors: [Color(white: 0.95), Color(white: 0.62), Color(white: 0.88), Color(white: 0.50)],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+}
+
+/// One humbucker: a black bobbin pair in a chrome ring, with a pole
+/// piece under each string.
+private struct Humbucker: View {
+    let width: CGFloat
+    let height: CGFloat
+    /// Where the pickup is centered on screen, and the screen height, for
+    /// lining the pole pieces up with the strings.
+    let centerY: CGFloat
+    let screenHeight: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: width * 0.18, style: .continuous)
+                .fill(ElectricGuitarBodyBackground.chrome)
+            HStack(spacing: width * 0.06) {
+                ForEach(0..<2, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: width * 0.12, style: .continuous)
+                        .fill(Color(white: 0.10))
+                }
+            }
+            .padding(width * 0.10)
+            // Pole pieces, in the pickup's own coordinates.
+            GeometryReader { geo in
+                let originY = centerY - height / 2
+                ForEach(0..<6, id: \.self) { index in
+                    ForEach(0..<2, id: \.self) { column in
+                        Circle()
+                            .fill(Color(white: 0.75))
+                            .frame(width: width * 0.14, height: width * 0.14)
+                            .position(x: geo.size.width * (column == 0 ? 0.30 : 0.70),
+                                      y: guitarStringY(index, height: screenHeight) - originY)
+                    }
+                }
+            }
+        }
+        .frame(width: width, height: height)
+        .shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 3)
     }
 }
 

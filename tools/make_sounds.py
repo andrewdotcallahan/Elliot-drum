@@ -23,6 +23,11 @@ Design notes (toddler-friendly, parent-ear-friendly):
     (equal peak makes low strings read much louder), then scaled as a
     group so a full six-string strum (30 ms onset stagger) sums to
     -1.5 dBFS peak with no clipping.
+  * The electric guitar (electric_s1..s6) shares the open G tuning and
+    the level chain, but uses a bright, long-sustain steel string, a
+    pickup comb filter, gentle per-string overdrive, and an amp-cabinet
+    band-limit. It is generated last so every other file stays
+    byte-identical (the noise generator is seeded and shared).
 """
 
 import os
@@ -307,7 +312,7 @@ def ride():
 # Guitar (open G major, tuned Karplus-Strong)
 # --------------------------------------------------------------------------
 
-def ks_string(period, duration, damp):
+def ks_string(period, duration, damp, smooth=3, decay=1.5, pick_gain=0.20):
     """Karplus-Strong with a fractional-delay allpass in the loop.
 
     Loop delay budget: N samples (delay line) + 0.5 (two-point average
@@ -324,7 +329,7 @@ def ks_string(period, duration, damp):
 
     exc = rng.uniform(-1, 1, N)
     exc -= exc.mean()
-    for _ in range(3):  # warm up the excitation (darker attack)
+    for _ in range(smooth):  # warm up the excitation (darker attack)
         exc = 0.5 * (exc + np.roll(exc, 1))
 
     n = int(SR * duration)
@@ -345,29 +350,61 @@ def ks_string(period, duration, damp):
         idx = (idx + 1) % N
 
     t = np.arange(n) / SR
-    out *= np.exp(-t * 1.5)
+    out *= np.exp(-t * decay)
 
     n_pick = int(SR * 0.004)
     pick = shape_spectrum(rng.uniform(-1, 1, n_pick), bp_curve(1000, 4000, 2))
     pick /= max(np.max(np.abs(pick)), 1e-9)
-    out[:n_pick] += pick * np.linspace(1.0, 0.0, n_pick) * 0.20 * np.max(np.abs(out))
+    out[:n_pick] += pick * np.linspace(1.0, 0.0, n_pick) * pick_gain * np.max(np.abs(out))
     return out
 
 
-def pluck(freq, duration=2.0):
+def pluck(freq, duration=2.0, damp=0.9975, **tone):
     """Tuned pluck: synthesize, measure the pitch by autocorrelation, and
     correct the loop period until within +/-0.03% of the target."""
-    damp = 0.9975
     period = SR / freq
-    x = ks_string(period, duration, damp)
+    x = ks_string(period, duration, damp, **tone)
     for _ in range(4):
         f0 = measure_pitch(x)
         ratio = f0 / freq
         if abs(ratio - 1.0) < 0.0003:
             break
         period *= ratio
-        x = ks_string(period, duration, damp)
+        x = ks_string(period, duration, damp, **tone)
     return x
+
+
+def electric_pluck(freq):
+    """Electric guitar string: a bright, long-sustaining steel KS pluck
+    (barely-smoothed excitation, light loop damping), seen through a
+    pickup a fifth of the way along the string (comb notch -> the nasal
+    electric bark), a gentle tube-style overdrive, and a 4x12-ish cabinet
+    band-limit so the drive never fizzes. Overdrive is applied per
+    string, so strummed chords stay clean (no intermodulation mush) and
+    the harmonics it adds are exact multiples: pitch is unchanged."""
+    x = pluck(freq, duration=2.6, damp=0.9990, smooth=1, decay=0.9,
+              pick_gain=0.35)
+    period = SR / freq
+    lag = int(round(0.2 * period))
+    x = x - 0.8 * np.concatenate([np.zeros(lag), x[:-lag]])  # pickup comb
+    x = x / max(np.max(np.abs(x)), 1e-9)
+    drive = 3.0
+    x = np.tanh(drive * x) / np.tanh(drive)
+    x = shape_spectrum(x, bp_curve(90, 4500, 2))  # amp cabinet
+    # Presence bump around 2 kHz, the "cut" of an amp's mid-range.
+    x = x + 0.35 * shape_spectrum(x, bp_curve(1500, 2800, 1))
+    t = np.arange(len(x)) / SR
+    return x * np.exp(-t * 0.35)  # tails off to silence by the file end
+
+
+def guitar_strum_mix(plucks):
+    stag = int(SR * STRUM_STAGGER)
+    names = sorted(plucks)
+    length = stag * (len(names) - 1) + max(len(v) for v in plucks.values())
+    strum = np.zeros(length)
+    for i, k in enumerate(names):
+        strum[i * stag:i * stag + len(plucks[k])] += plucks[k]
+    return strum
 
 
 def small_speaker_exciter(x, amount):
@@ -576,6 +613,12 @@ GUITAR_STRINGS = {
     "guitar_s6.wav": 293.66,   # D4
 }
 
+# Electric guitar: same open G tuning so it jams with everything else.
+ELECTRIC_STRINGS = {
+    f"electric_s{i}.wav": f
+    for i, f in enumerate(GUITAR_STRINGS.values(), start=1)
+}
+
 STALE_FILES = [
     # Pre-open-G guitar names.
     "guitar_e2.wav", "guitar_a2.wav", "guitar_d3.wav",
@@ -672,6 +715,22 @@ def main():
     # so it targets a few dB under the one-shots.
     write_wav("trombone.wav", trombone_loop(), do_normalize=False,
               phone_target=PHONE_TARGET * 0.55, loop=True)
+
+    # Electric guitar: tuned plucks (before drive), then the same
+    # balance -> strum-peak -> whole-strum phone calibration chain as the
+    # acoustic, so switching guitars keeps the same loudness.
+    electric = {}
+    for name, freq in ELECTRIC_STRINGS.items():
+        electric[name] = electric_pluck(freq)
+        f0 = measure_pitch(electric[name])
+        print(f"  {name}: tuned to {f0:.3f} Hz (target {freq:.2f}, "
+              f"{(f0 / freq - 1) * 100:+.3f}%)")
+    electric = balance_guitar(electric)
+    electric = scale_guitar_for_strum(electric)
+    strum = guitar_strum_mix(electric)
+    strum_gain = PHONE_TARGET / max(phone_loud300(strum), 1e-12)
+    for name, x in electric.items():
+        write_wav(name, x * strum_gain, do_normalize=False)
     print("Done.")
 
 

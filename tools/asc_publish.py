@@ -8,7 +8,8 @@ Does everything Apple's public API allows for a first release:
   * answers the age rating questionnaire (everything NONE -> 4+)
   * uploads the App Store screenshots committed under app-store/
   * sets the price schedule to Free (best effort)
-  * attaches the requested build to the 1.0 version
+  * attaches the requested build to the requested version (updates also
+    get "What's New" text)
   * creates/updates the App Review contact details
   * creates the review submission and submits it
 
@@ -28,24 +29,26 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from asc_setup import api, fail  # noqa: E402
 
-SUBTITLE = "Toddler drums, piano & more"
-PROMO = ("Six real-sounding instruments for little hands — no ads, "
+SUBTITLE = "Toddler drums, guitars & more"
+PROMO = ("Eight real-sounding instruments for little hands — no ads, "
          "no purchases, no internet needed.")
 KEYWORDS = ("toddler,baby,kids,music,drums,piano,xylophone,guitar,"
-            "bongos,trombone,instruments,sounds")
+            "electric guitar,bongos,trombone,instruments")
 DESCRIPTION = """\
-BabyBand Jam is a music toy built for toddlers — six instruments that \
+BabyBand Jam is a music toy built for toddlers — eight instruments that \
 sound great, respond instantly, and can't be broken by enthusiastic \
 little hands.
 
 THE BAND
 • Drums — a full 7-piece kit with cymbals that wobble when you crash them
-• Guitar — strum anywhere and it's always a beautiful chord
+• Acoustic Guitar — strum anywhere and it's always a beautiful chord
+• Electric Guitar — the same easy strumming, with a crunchy amp sound
 • Xylophone — 8 rainbow bars, with follow-the-glow songs (Twinkle \
 Twinkle and Mary Had a Little Lamb)
 • Trombone — drag the slide for real glissando, just like the real thing
 • Piano — big colorful keys made for small fingers
 • Bongos — three hand drums sized for baby palms
+• Tongue Drum — a shimmering steel drum where every note sounds good
 
 BUILT FOR TODDLERS
 • Every touch makes a sound — no menus, no wrong answers
@@ -60,6 +63,13 @@ FOR PARENTS
 • Nothing to unlock, nothing to subscribe to: the whole app, forever
 
 Made by a dad for his one-and-a-half-year-old. Enjoy the racket!
+"""
+# "What's New" text; Apple requires it on every version after the first.
+WHATS_NEW = """\
+Two guitars! The guitar is now an Acoustic Guitar, and it has a new \
+bandmate: an Electric Guitar with a glossy cherry-red body, chrome \
+pickups, and a crunchy amp sound. Both strum exactly the same way, and \
+every strum is still a happy chord.
 """
 REVIEW_NOTES = ("App for toddlers; no account or setup needed. All sounds "
                 "are synthesized originals. Instrument switching is behind "
@@ -80,6 +90,10 @@ def find_app(bundle_id):
     return apps[0]["id"]
 
 
+EDITABLE_STATES = ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED",
+                   "REJECTED", "METADATA_REJECTED", "INVALID_BINARY")
+
+
 def ensure_version(app_id, version_string):
     status, out = api("GET", f"/v1/apps/{app_id}/appStoreVersions"
                              f"?filter[versionString]={version_string}")
@@ -88,6 +102,21 @@ def ensure_version(app_id, version_string):
         v = versions[0]
         print(f"version {version_string} exists "
               f"({v['attributes'].get('appStoreState')})")
+        return v["id"]
+    # Only one editable version may exist at a time; if an earlier draft
+    # (e.g. a never-submitted 1.1) is still open, renumber it instead.
+    status, out = api("GET", f"/v1/apps/{app_id}/appStoreVersions"
+                             f"?filter[appStoreState]={','.join(EDITABLE_STATES)}")
+    drafts = out.get("data", []) if status == 200 else []
+    if drafts:
+        v = drafts[0]
+        old = v["attributes"].get("versionString")
+        status, out = api("PATCH", f"/v1/appStoreVersions/{v['id']}", {
+            "data": {"type": "appStoreVersions", "id": v["id"],
+                     "attributes": {"versionString": version_string}}})
+        if status != 200:
+            fail(f"could not renumber draft version {old} ({status}): {out}")
+        print(f"renumbered open draft version {old} -> {version_string}")
         return v["id"]
     status, out = api("POST", "/v1/appStoreVersions", {
         "data": {"type": "appStoreVersions",
@@ -135,7 +164,8 @@ def set_app_info(app_id, privacy_url):
     return info_id
 
 
-def version_localization(version_id, support_url, marketing_url):
+def version_localization(version_id, support_url, marketing_url,
+                         whats_new=None):
     status, out = api(
         "GET", f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations")
     locs = out.get("data", []) if status == 200 else []
@@ -149,14 +179,15 @@ def version_localization(version_id, support_url, marketing_url):
         if status != 201:
             fail(f"could not create en-US localization ({status}): {out}")
         loc = out["data"]
+    attrs = {"description": DESCRIPTION, "keywords": KEYWORDS,
+             "promotionalText": PROMO, "supportUrl": support_url,
+             "marketingUrl": marketing_url}
+    if whats_new:
+        attrs["whatsNew"] = whats_new
     status, out = api(
         "PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {
             "data": {"type": "appStoreVersionLocalizations", "id": loc["id"],
-                     "attributes": {"description": DESCRIPTION,
-                                    "keywords": KEYWORDS,
-                                    "promotionalText": PROMO,
-                                    "supportUrl": support_url,
-                                    "marketingUrl": marketing_url}}})
+                     "attributes": attrs}})
     print("version metadata set" if status == 200
           else f"::warning::version metadata ({status}): {out}")
     return loc["id"]
@@ -413,7 +444,10 @@ def main():
     print(f"app id: {app_id}")
     version_id = ensure_version(app_id, args.version)
     info_id = set_app_info(app_id, f"{base}/privacy.html")
-    loc_id = version_localization(version_id, f"{base}/support.html", base)
+    # The first release can't carry "What's New"; every update must.
+    whats_new = WHATS_NEW if args.version != "1.0" else None
+    loc_id = version_localization(version_id, f"{base}/support.html", base,
+                                  whats_new)
     if info_id:
         age_rating(info_id)
     upload_screenshots(loc_id)

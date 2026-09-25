@@ -2,7 +2,8 @@ import SwiftUI
 
 enum Instrument: String, CaseIterable {
     case drums
-    case guitar
+    case guitar                          // acoustic; raw value kept for saved selections
+    case electricGuitar = "electricguitar"
     case xylophone
     case trombone
     case piano
@@ -12,7 +13,8 @@ enum Instrument: String, CaseIterable {
     var title: String {
         switch self {
         case .drums: return "Drums"
-        case .guitar: return "Guitar"
+        case .guitar: return "Acoustic Guitar"
+        case .electricGuitar: return "Electric Guitar"
         case .xylophone: return "Xylophone"
         case .trombone: return "Trombone"
         case .piano: return "Piano"
@@ -24,7 +26,8 @@ enum Instrument: String, CaseIterable {
     @ViewBuilder var icon: some View {
         switch self {
         case .drums: Text("🥁").font(.system(size: 44))
-        case .guitar: Text("🎸").font(.system(size: 44))
+        case .guitar: AcousticGuitarIcon()
+        case .electricGuitar: Text("🎸").font(.system(size: 44))
         case .xylophone: XylophoneIcon()
         case .trombone: Text("🎺").font(.system(size: 44))
         case .piano: Text("🎹").font(.system(size: 44))
@@ -47,7 +50,8 @@ struct ContentView: View {
             Group {
                 switch instrument {
                 case .drums: DrumKitView()
-                case .guitar: GuitarView()
+                case .guitar: GuitarView(style: .acoustic)
+                case .electricGuitar: GuitarView(style: .electric)
                 case .xylophone: XylophoneView()
                 case .trombone: TromboneView()
                 case .piano: PianoView()

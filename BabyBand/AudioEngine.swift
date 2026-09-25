@@ -10,6 +10,7 @@ final class AudioEngine {
     static let soundNames: [String] =
         ["kick", "snare", "hihat", "tom_hi", "tom_floor", "cymbal", "ride"]
         + (1...6).map { "guitar_s\($0)" }
+        + (1...6).map { "electric_s\($0)" }
         + (1...8).map { "xylo_\($0)" }
         + (1...8).map { "piano_\($0)" }
         + (1...8).map { "tongue_\($0)" }

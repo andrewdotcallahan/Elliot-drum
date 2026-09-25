@@ -108,7 +108,8 @@ struct InstrumentSwitcher: View {
                 Text(instrument.title)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity, minHeight: 120)
@@ -150,6 +151,43 @@ struct TongueDrumIcon: View {
                 .frame(width: 6, height: 6)
         }
         .frame(width: 48, height: 48)
+    }
+}
+
+/// Mini acoustic guitar icon (the 🎸 emoji is an electric, so it goes to
+/// the electric guitar): a wooden figure-eight body with a soundhole and
+/// a neck.
+struct AcousticGuitarIcon: View {
+    private let wood = LinearGradient(
+        colors: [Color(red: 0.86, green: 0.62, blue: 0.32),
+                 Color(red: 0.62, green: 0.38, blue: 0.16)],
+        startPoint: .top, endPoint: .bottom)
+
+    var body: some View {
+        ZStack {
+            // Neck and headstock.
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(red: 0.30, green: 0.17, blue: 0.08))
+                .frame(width: 6, height: 26)
+                .offset(y: -15)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(red: 0.30, green: 0.17, blue: 0.08))
+                .frame(width: 10, height: 7)
+                .offset(y: -25)
+            // Figure-eight body: small upper bout, big lower bout.
+            Circle().fill(wood).frame(width: 22, height: 22).offset(y: 1)
+            Circle().fill(wood).frame(width: 30, height: 30).offset(y: 12)
+            Circle()
+                .fill(Color(red: 0.12, green: 0.06, blue: 0.03))
+                .frame(width: 9, height: 9)
+                .offset(y: 5)
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Color(red: 0.25, green: 0.13, blue: 0.05))
+                .frame(width: 12, height: 3)
+                .offset(y: 19)
+        }
+        .frame(width: 48, height: 52)
+        .rotationEffect(.degrees(35))
     }
 }
 
